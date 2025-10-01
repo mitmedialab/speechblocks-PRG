@@ -1,6 +1,6 @@
-# SpeechBlocks-II
+# SpeechBlocks-PRG
 
-This repository contains SpeechBlocks-II, a child-driven, constructioninst-inspired app for early literacy learning. SpeechBlocks-II and the associated experiments was described in:
+This repository contains SpeechBlocks-PRG, a fork of SpeechBlocks-II, a child-driven, constructioninst-inspired app for early literacy learning. SpeechBlocks-II and the associated experiments was described in:
 
 Sysoev, I., Gray, J. H., Fine, S., Makini, S. P., & Roy, D. (2022). Child-driven, machine-guided: Automatic scaffolding of constructionist-inspired early literacy play. Computers & Education, 182, 104434.
 
@@ -35,3 +35,4 @@ This version of the app doesn't exactly correspond to what was described in the 
 4. Scaffolding system was modified to provide more adaptive, layered scaffolding, akin to Kegel, C. A., & Bus, A. G. (2012). Online tutoring as a pivotal quality of web-based early literacy programs. Journal of Educational Psychology, 104(1), 182. 
 
 5. Scaffolding was also modified to be more flexible and account for invented spelling. When a misspelling occurs, the system pronounces the misspelled words, encouraging exploration and making mistakes more fun.
+
