@@ -6,7 +6,7 @@ Sysoev, I., Gray, J. H., Fine, S., Makini, S. P., & Roy, D. (2022). Child-driven
 
 If you use parts of this repo for your own research work, citation of that paper would be appreciated :)
 
-The app was developed in Unity.
+The app was developed in Unity with Editor version 2022.3.41f1. Make sure to use the same editor version to load the app.
 
 ## Third-party components / How to build this repo
 
@@ -20,7 +20,14 @@ To install Firebase plugin, download Firebase Unity SDK (https://firebase.google
 
 To activate cloud services, you will need to subscribe to them and insert the corresponding authentication info into Assets/Config/KeyConfig.json. Note that the app has an offline mode (in case kids experience loss of wifi), and therefore it can work without these services. In the offline mode, it would use Android speech synthesizer. However, the quality of speech would become significantly lower. And, of course, the users won't be able to select whatever they want to build using speech recognition, which is one of the key features of the app.
 
-To get the images, please contact me at isysoev@alum.mit.edu. Once received, unpack the archive into Assets/Resources/Images.
+For the repo to work, you will need a few things from the PRG developers (jmerrin@media.mit.edu; xiajie@media.mit.edu)
+1. The image assets for Assets/Resources/Images
+2. KeyConfig file with credentials for the cloud services
+
+### Trouble Shooting
+1. If image are loaded as game objects but they aren't movable
+    - Check if image assets in your /Assets/Resources/Images are readable by "Click on a image > Inspector view > Advanced tab > Checkmark Read/Write"
+    - Can apply to all images by select all and apply the checkmark
 
 ## Differences from the version in the paper
 

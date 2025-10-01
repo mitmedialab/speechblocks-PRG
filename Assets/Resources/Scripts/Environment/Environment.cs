@@ -71,7 +71,12 @@ public class Environment : MonoBehaviour
 
     public string GetStationName()
     {
-        return SystemInfo.deviceName;
+        string systemName = SystemInfo.deviceName;
+        // Commenting the following out if your system's name is findable in the databse
+        #if UNITY_EDITOR
+            systemName = "Test";
+        #endif
+        return systemName;
     }
 
     public bool IsLoggingEnabled()
