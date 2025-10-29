@@ -121,6 +121,12 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     private const float SCALE_RELATIVE_TO_HELP_BUTTON = 0.65f;
     private const float Y_OFFSET_RELATIVE_TO_HELP_BUTTON = -0.88f;
 
+    private WordBox bottomWordBox;
+    private float celebrationPause = 0.18f;
+    private bool isJumpingToWordBoxEnd = false;
+    private Scaffolder scaffolder;
+
+
     private static Dictionary<string, Vector3> positionByLocation = new Dictionary<string, Vector3>()
     {
         {"title_page", new Vector3(0, -4.02f, -20f)},
@@ -210,7 +216,23 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         speechRingPrefab = Resources.Load<GameObject>("Prefabs/speech-ring");
         eyeController.SetCoroutine(BlinkingCoroutine());
         speechRecoButton = GameObject.FindWithTag("SpeechRecoButton")?.GetComponent<SpeechRecoButton>();
+
+
+        GameObject wordDrawerGO = GameObject.FindWithTag("WordDrawer");
+        if (wordDrawerGO != null)
+        {
+            bottomWordBox = wordDrawerGO.GetComponentInChildren<WordBox>();
+            if (bottomWordBox == null)
+            {
+                Debug.LogError("WordBox not found as a child of WordDrawer!");
+            }
+        }
+        else
+        {
+            Debug.LogError("WordDrawer GameObject not found!");
+        }
     }
+
 
     void OnDestroy()
     {
@@ -251,23 +273,47 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
                 animator.SetCoroutine(AnimateWiggle(wiggleCycles: 3, wiggleDuration: 2.5f));
                 break;
             case RoboExpression.HAPPY:
+        
             case RoboExpression.EXCITED:
-                switch (RandomUtil.Range("jibo-expr1", 0, 3))
+                switch (RandomUtil.Range("jibo-expr1", 7, 8))
                 {
                     case 0:
                         //Debug.Log("ANIMATOR: HAPPY WIGGLE");
                         animator.SetCoroutine(AnimateWiggle(wiggleCycles: 2, wiggleDuration: 1.75f));
                         break;
                     case 1:
-                        //Debug.Log("ANIMATOR: SPIN");
+                        Debug.Log("ANIMATOR: SPIN");
                         animator.SetCoroutine(AnimateSpin(1.25f));
                         break;
                     case 2:
                         //Debug.Log("ANIMATOR: EXCITED JUMP");
                         animator.SetCoroutine(AnimateExcitedJump());
                         break;
-                }
+
+
+
+                    ////////////////////
+                    case 3:
+                        animator.SetCoroutine(AnimateHappyWiggleJump());  // NEW ANIMATION
+                        break;
+                    case 4:
+                        animator.SetCoroutine(AnimateHappySpinJump());  // NEW ANIMATION
+                        break;
+
+     
+                    case 5:
+                        animator.SetCoroutine(JumpAndCelebrate());
+                        break;
+
+                    case 6:
+                        animator.SetCoroutine(JumpToWordBoxEnd());
+                        break;
+                    case 7:
+                        animator.SetCoroutine(JumpToLastPlacedBlock());
+                        break;
+                }       
                 break;
+
             case RoboExpression.PUZZLED:
             case RoboExpression.CURIOUS:
                 //Debug.Log("ANIMATOR: HEAD TILT");
@@ -332,6 +378,9 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
             FocusOnAPointOfInterest();
         }
     }
+
+
+
 
     private void Update()
     {
@@ -769,6 +818,8 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         }
     }
 
+
+
     private IEnumerator Watch(Vector3 direction)
     {
         animationType = ANIMATION_TYPE_LOOKAT;
@@ -998,16 +1049,34 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     private IEnumerator AnimateExcitedJump()
     {
         animationType = ANIMATION_TYPE_EXPRESSION;
+
+        // 1. Store original position
+        Vector3 originalPos = jiboTform.position;
+
+        // 2. Reset any pose deviations
         AnnulDeviations();
+
+        // 3. Smile eyes
         SmileEye();
+
+        // 4. Squish down
         yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // 5. Launch up (relative to original position)
         yield return Launch();
-        yield return Fly(jiboTform.position, jiboTform.localScale.x, IN_THE_AIR_DURATION / Mathf.Sqrt(3), JUMP_HEIGHT / 3);
+
+        // 6. Fly in an arc, anchored to original position
+        yield return Fly(originalPos, jiboTform.localScale.x, IN_THE_AIR_DURATION / Mathf.Sqrt(3), JUMP_HEIGHT / 3);
+
+        // 7. Land at original position
         yield return Land();
+
+        // 8. Unsquish
         yield return TransitionScalarParam(POSE_PARAM_SQUISH, 1, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // 9. Restore default expression/pose
         RestoreAfterExpression();
     }
-
     private void AssignFaceDir(Vector3 direction)
     {
         Quaternion dirQuat = Quaternion.LookRotation(direction);
@@ -1063,7 +1132,126 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         }
         UnsmileEye();
         RestoreAfterExpression();
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private IEnumerator AnimateHappySpinJump(float spinDuration = 1.5f, float jumpHeight = 0.5f, int spinCycles = 2)
+    {
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+
+        SmileEye();
+
+        Vector3 startPos = jiboTform.position;
+        Quaternion startRot = jiboTform.rotation;
+
+        float azimuth_0 = Azimuth(poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward);
+        float elevation_0 = Elevation(poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward);
+
+        // Spin over time
+        double t0 = TimeKeeper.time;
+        while (TimeKeeper.time - t0 < spinDuration)
+        {
+            yield return null;
+            float tSpin = 2 * Mathf.PI * spinCycles * Easing.EaseInSteadyOut(
+                (float)(TimeKeeper.time - t0) / spinDuration, 0.75f);
+            float azimuth = azimuth_0 + tSpin;
+            float elevation = elevation_0 * Mathf.Cos(tSpin);
+            AssignFaceDirAndGazeDir(DirFromAzimuthAndElevation(azimuth, elevation));
+        }
+
+        // Jump
+        Vector2 targetPos = new Vector2(startPos.x, startPos.y);
+        yield return PreJumpSquish(targetPos);
+        yield return Launch();
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION * 1.5f, jumpHeight);
+        yield return Land();
+        yield return PostJumpUnsquish();
+
+        UnsmileEye();
+        RestoreAfterExpression();
+        jiboTform.position = startPos;
+        jiboTform.rotation = startRot;
+    }
+
+    private IEnumerator AnimateHappyWiggleJump(float wiggleDuration = 1.5f, int wiggleCycles = 2, float jumpHeight = 0.2f)
+    {
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+        SmileEye();
+
+        Vector3 startPos = jiboTform.position;
+        Quaternion startRot = jiboTform.rotation;
+        float azimuth_0 = Azimuth(poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward);
+        float DEFLECTION_R = Mathf.Deg2Rad * 15;
+
+        // Wiggle Motion
+        double t0 = TimeKeeper.time;
+        while (TimeKeeper.time - t0 < wiggleDuration)
+        {
+            yield return null;
+            float tWiggle = 2 * Mathf.PI * wiggleCycles * Easing.EaseInOut(
+                (float)(TimeKeeper.time - t0) / wiggleDuration);
+            float wiggleAzimuth = azimuth_0 + DEFLECTION_R * Mathf.Sin(tWiggle);
+            AssignFaceDirAndGazeDir(DirFromAzimuthAndElevation(wiggleAzimuth, 0));
+            poseScalarParams[POSE_PARAM_TILT] = TILT_NORMAL_RANGE * Mathf.Sin(tWiggle);
+        }
+
+        // Jump
+        Vector2 targetPos = new Vector2(startPos.x, startPos.y);
+        yield return PreJumpSquish(targetPos);
+        yield return Launch();
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION * 1.5f, jumpHeight);
+        yield return Land();
+        yield return PostJumpUnsquish();
+
+        UnsmileEye();
+        RestoreAfterExpression();
+        jiboTform.position = startPos;
+        jiboTform.rotation = startRot;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     private IEnumerator AnimateSadness()
     {
@@ -1186,4 +1374,316 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         Vector2 headPos = jiboFaceAssembly.position;
         speechRing.transform.position = new Vector3(headPos.x, headPos.y, -5);
     }
+
+  
+
+    private IEnumerator JumpAndCelebrate()
+    {
+        // Save original position
+        Vector3 originalPosition = jiboTform.position;
+
+        // Pick one of the existing jump animations randomly, for example:
+        int choice = RandomUtil.Range("jibo-celebrate-jump", 5, 5); // match your previous logic
+        IEnumerator jumpAnimation;
+        jumpAnimation = AnimateExcitedJump();
+
+        // Run the jump animation
+        yield return CoroutineUtils.RunUntilAllStop(new List<IEnumerator> { jumpAnimation });
+
+        // Restore original position
+        jiboTform.position = originalPosition;
+
+        // Optional: pause a moment to let the celebration settle
+        yield return new WaitForSeconds(celebrationPause);
+
+        // Trigger any additional celebration effects (LED flash, sound, etc.)
+        DropSpeechRing();
+    }
+
+
+    private IEnumerator AnimateWiggleSlideToWordBoxEdge(int wiggleCycles, float wiggleDuration)
+    {
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+        SmileEye();
+
+        // Ensure we have a reference to the bottom WordBox
+        if (bottomWordBox == null)
+        {
+            bottomWordBox = GameObject.FindObjectOfType<WordBox>();
+            if (bottomWordBox == null)
+            {
+                Debug.LogWarning("No WordBox found for Jibo wiggle-slide animation!");
+                yield break;
+            }
+        }
+
+        // Compute target slide distance using WordBox bounds
+        Bounds boxBounds = bottomWordBox.GetMyBounds();
+        Vector3 startPos = jiboTform.position;
+        float slideDistance = boxBounds.max.x - startPos.x; // move toward the right edge
+
+        // Optional small offset to stop before the exact edge
+        slideDistance -= 0.2f;
+
+        float DEFLECTION_R = Mathf.Deg2Rad * 15;
+        Vector3 direction_0 = poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward;
+        float azimuth_0 = Azimuth(direction_0);
+        Vector3 direction = DirFromAzimuthAndElevation(azimuth_0, 0);
+        yield return TransitionLook(targetFaceDirection: direction, targetGazeDirection: direction, duration: 0.3f, gazeDuration: LOOKAT_GAZE_DURATION);
+
+        Vector3 endPos = startPos + new Vector3(slideDistance, 0, 0);
+
+        double t0 = TimeKeeper.time;
+        while (TimeKeeper.time - t0 < wiggleDuration)
+        {
+            yield return null;
+            float normalizedT = (float)((TimeKeeper.time - t0) / wiggleDuration);
+            float easedT = Easing.EaseInOut(normalizedT);
+
+            // Wiggle rotation
+            float t = 2 * Mathf.PI * wiggleCycles * easedT;
+            float azimuth = azimuth_0 - DEFLECTION_R * Mathf.Sin(t);
+            AssignFaceDirAndGazeDir(DirFromAzimuthAndElevation(azimuth, 0));
+            poseScalarParams[POSE_PARAM_TILT] = TILT_NORMAL_RANGE * Mathf.Sin(t);
+
+            // Slide motion toward the right edge
+            jiboTform.position = Vector3.Lerp(startPos, endPos, easedT);
+        }
+
+        UnsmileEye();
+        RestoreAfterExpression();
+    }
+
+    private IEnumerator JumpToWordBoxBottomRight()
+    {
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+        SmileEye();
+
+        // Pre-jump squish
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+        yield return Launch();
+
+        // Ensure we have a reference to bottomWordBox
+        if (bottomWordBox == null)
+        {
+            bottomWordBox = GameObject.FindObjectOfType<WordBox>();
+            if (bottomWordBox == null)
+            {
+                Debug.LogWarning("JumpToWordBoxBottomRight: Could not find WordBox!");
+                yield break;
+            }
+        }
+
+        // Get word box bounds
+        Bounds boxBounds = bottomWordBox.GetMyBounds();
+
+        // Compute jump target — bottom-right corner
+        Vector3 targetPos = new Vector3(
+            boxBounds.max.x,     // rightmost x
+            boxBounds.min.y,     // lowest y
+            jiboTform.position.z // keep same z
+        );
+
+        // Optional offset (so Jibo lands slightly above the box visually)
+        float liftOffset = Block.GetStandardHeight() * 0.25f;
+        targetPos.y += liftOffset;
+
+        Debug.Log($"JumpToWordBoxBottomRight → target {targetPos}");
+
+        // Perform the jump
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION, JUMP_HEIGHT);
+
+        // Land and recover
+        yield return Land();
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, 1, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        RestoreAfterExpression();
+    }
+    private IEnumerator JumpToLastPlacedBlock()
+    {
+        if (bottomWordBox == null)
+        {
+            bottomWordBox = GameObject.FindObjectOfType<WordBox>();
+            if (bottomWordBox == null)
+            {
+                Debug.LogWarning("JumpToLastPlacedBlock: No WordBox found!");
+                yield break;
+            }
+        }
+
+        List<Block> placedBlocks = bottomWordBox.GetBlocks();
+        if (placedBlocks.Count == 0)
+        {
+            Debug.LogWarning("JumpToLastPlacedBlock: No placed blocks to jump to!");
+            yield break;
+        }
+
+        // Capture original global position BEFORE any jumps
+        Vector3 originalPos = jiboTform.position;
+
+        Block lastBlock = placedBlocks.Last();
+
+        // Compute jump target slightly right and above last block
+        float cellHeight = Block.GetStandardHeight();
+        Vector3 lastBlockWorldPos = bottomWordBox.transform.position + lastBlock.transform.localPosition;
+
+        Vector3 targetPos = lastBlockWorldPos + new Vector3(0, 0.75f * cellHeight, 0);
+
+        Debug.Log($"🎯 JumpToLastPlacedBlock → target {targetPos}");
+
+        // Pre-jump squish
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // Launch and jump
+        yield return Launch();
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION, JUMP_HEIGHT);
+
+        // Land and recover
+        yield return Land();
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, 1, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // Randomly pick a happy animation
+        if (UnityEngine.Random.value < 0.5f)
+        {
+            yield return AnimateHappySpinJump();
+        }
+        else
+        {
+            yield return AnimateHappyWiggleJump();
+        }
+
+        RestoreAfterExpression();
+        
+    }
+
+    private IEnumerator JumpToWordBoxEnd()
+    {
+        // Capture original global position BEFORE any jumps
+        Vector3 originalPos = jiboTform.position;
+
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+        SmileEye();
+
+        // --- Pre-jump squish ---
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // --- Launch first jump ---
+        yield return Launch();
+
+        // --- Step 1: Jump to end-of-word-box ---
+        Vector3 firstTarget;
+        GameObject lastActiveCell = bottomWordBox.GetLastActiveCell();
+        if (lastActiveCell != null)
+        {
+            float cellWidth = Block.GetStandardHeight();
+            float cellHeight = Block.GetStandardHeight();
+            firstTarget = lastActiveCell.transform.position + new Vector3(cellWidth, -0.25f * cellHeight, 0);
+        }
+        else
+        {
+            firstTarget = bottomWordBox.transform.position;
+        }
+
+        yield return Fly(firstTarget, jiboTform.localScale.x, IN_THE_AIR_DURATION, JUMP_HEIGHT);
+        yield return Land();
+        yield return TransitionScalarParam(POSE_PARAM_SQUISH, 1, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
+
+        // Short pause
+        yield return CoroutineUtils.WaitCoroutine(0.3f);
+
+        // Wiggle Slide
+        {
+            int wiggleCycles = 2;
+            float wiggleDuration = 1.5f;
+
+            Vector3 startPos = jiboTform.position;
+            Vector3 startLoginPos = positionByLocation["login"];
+            float maxX = startLoginPos.x + 3 * Block.GetStandardHeight(); // clamp to 3 blocks from login
+
+            float slideDistance = 4 * Block.GetStandardHeight(); // desired slide distance
+            Vector3 desiredEndPos = startPos + new Vector3(slideDistance, 0, 0);
+
+            // Clamp end position so we never go past maxX
+            Vector3 endPos = new Vector3(Mathf.Min(desiredEndPos.x, maxX), startPos.y, startPos.z);
+
+            float DEFLECTION_R = Mathf.Deg2Rad * 15;
+            Vector3 direction_0 = poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward;
+            float azimuth_0 = Azimuth(direction_0);
+            Vector3 direction = DirFromAzimuthAndElevation(azimuth_0, 0);
+
+            yield return TransitionLook(targetFaceDirection: direction, targetGazeDirection: direction, duration: 0.3f, gazeDuration: LOOKAT_GAZE_DURATION);
+
+            double t0 = TimeKeeper.time;
+            while (TimeKeeper.time - t0 < wiggleDuration)
+            {
+                yield return null;
+                float normalizedT = (float)((TimeKeeper.time - t0) / wiggleDuration);
+                float easedT = Easing.EaseInOut(normalizedT);
+
+                // Wiggle rotation
+                float t = 2 * Mathf.PI * wiggleCycles * easedT;
+                float azimuth = azimuth_0 - DEFLECTION_R * Mathf.Sin(t);
+                AssignFaceDirAndGazeDir(DirFromAzimuthAndElevation(azimuth, 0));
+                poseScalarParams[POSE_PARAM_TILT] = TILT_NORMAL_RANGE * Mathf.Sin(t);
+
+                // Slide motion
+                Vector3 lerpedPos = Vector3.Lerp(startPos, endPos, easedT);
+                lerpedPos.x = Mathf.Min(lerpedPos.x, maxX); // ensure we never go past maxX
+                jiboTform.position = lerpedPos;
+            }
+
+            UnsmileEye();
+        }
+
+        // Short pause after wiggle-slide
+        yield return CoroutineUtils.WaitCoroutine(0.3f);
+
+        // --- Launch second jump (down to bottom) ---
+        yield return Launch();
+
+        Bounds wordBoxBounds = bottomWordBox.GetMyBounds();
+        Vector3 startPosLogin = positionByLocation["login"];
+        Vector3 targetPos = new Vector3(
+            startPosLogin.x + 3.95f * Block.GetStandardHeight(), // start X plus 4 blocks
+            wordBoxBounds.max.y + 0.2f * Block.GetStandardHeight(),                  // bottom of WordBox
+            startPosLogin.z                                  // keep depth
+        );
+
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION, JUMP_HEIGHT);
+        yield return Land();
+
+        // Short pause after landing
+        yield return CoroutineUtils.WaitCoroutine(0.6f);
+
+
+        // --- Final wiggle after second jump ---
+        yield return AnimateWiggle(wiggleCycles: 2, wiggleDuration: 1.2f);
+
+        RestoreAfterExpression();
+       
+
+
+    }
+
+
+
+
+    public void TriggerJumpToWordBoxEnd()
+    {
+        if (animator == null)
+        {
+            // Should not happen but guard defensively
+            Debug.LogWarning("TriggerJumpToWordBoxEnd: animator is null.");
+            return;
+        }
+
+        // If JumpToWordBoxEnd is already running the animator will handle queueing/replace per your needs.
+        animator.SetCoroutine(JumpToWordBoxEnd());
+    }
 }
+
+
+

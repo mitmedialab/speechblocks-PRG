@@ -111,6 +111,8 @@ public class WordBox : MonoBehaviour
         return myBounds;
     }
 
+    
+
     public List<Block> GetBlocks()
     {
         return myBlocks.Take(AssembledPrefixLength()).ToList();
@@ -119,6 +121,15 @@ public class WordBox : MonoBehaviour
     public List<Block> GetAllBlocks()
     {
         return new List<Block>(myBlocks);
+    }
+
+    public GameObject GetLastActiveCell()
+    {
+        if (myCells != null && myCells.Count > 0)
+        {
+            return myCells.Last();
+        }
+        return null;
     }
 
     public int BlocksCount()
@@ -696,4 +707,7 @@ public class WordBox : MonoBehaviour
         }
         return myBlocks.Count;
     }
+
+  
 }
+

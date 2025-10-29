@@ -19,4 +19,5 @@ public interface IRoboPartner
     void ShowExpression(RoboExpression expression);
     void AtEase();
     void SuggestObjectsOfInterest(List<GameObject> objectsOfInterest);
+    void TriggerJumpToWordBoxEnd();
 }

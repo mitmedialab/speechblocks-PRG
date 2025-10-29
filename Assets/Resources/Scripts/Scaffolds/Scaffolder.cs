@@ -72,6 +72,8 @@ public class Scaffolder : MonoBehaviour
     private GameObject glowPrefab = null;
     private GameObject glow;
 
+    private VirtualJiboPartner jiboPartner;
+
     void Start()
     {
         glowPrefab = Resources.Load<GameObject>("Prefabs/glow");
@@ -97,6 +99,12 @@ public class Scaffolder : MonoBehaviour
         scaffoldLevels.Add(new ScaffoldLevelTargetSound(scaffoldLevelSyllabic));
         scaffoldLevels.Add(new ScaffoldLevelTargetBlock());
         scaffolderDecisionModel = new FixedDecisionModel();
+
+        jiboPartner = GameObject.FindObjectOfType<VirtualJiboPartner>();
+        if (jiboPartner == null)
+        {
+            Debug.LogWarning("Scaffolder: VirtualJiboPartner not found in scene. Jibo celebrations will be disabled.");
+        }
     }
 
     void Update()
@@ -386,21 +394,54 @@ public class Scaffolder : MonoBehaviour
 
     private void OnWordBoxUpdate()
     {
+      
         Debug.Log("SCAFFOLDER: Word box update");
         Unhighlight();
+
+
         if (null == target || isCompleted) return;
+
         ++wboxUpdateCount;
         ++scaffolderInteractionID;
         Logging.LogScaffoldingInteraction(scaffolderTargetID, scaffolderInteractionID, "wbox-update");
         InterruptCurrentProcess();
         environment.GetRoboPartner().LookAtTablet();
-        List<Block> misalignedBlocks = wordBox.GetAllBlocks().Where(block => !wordBox.HasAssignedLandingPlace(block)).ToList();
-        if (0 == misalignedBlocks.Count) {
+
+        List<Block> misalignedBlocks = wordBox.GetAllBlocks()
+            .Where(block => !wordBox.HasAssignedLandingPlace(block))
+            .ToList();
+
+        //Check if all letter positions in the target word are filled
+        bool allLettersFilled = !wordBox.IntervalHasUnassignedCells(0, target.collapsedWord.Length);
+
+        if (0 == misalignedBlocks.Count)
+        {
+            
             scaffoldProcessRunner.SetCoroutine(AcceptanceCoroutine());
-        } else {
+
+            if (allLettersFilled)
+            {
+                Debug.Log("🎉 Word is fully complete — triggering Jibo celebration!");
+                var jiboPartner = environment.GetRoboPartner();
+                if (jiboPartner != null)
+                {
+                    jiboPartner.TriggerJumpToWordBoxEnd();
+                }
+                else
+                {
+                    Debug.LogWarning("⚠️ Scaffolder: No Jibo partner found for celebration.");
+                }
+
+                isCompleted = true; // prevent retriggering
+            }
+        }
+        else
+        {
             correctionCount += 1;
             StartCoroutine(RejectionCoroutine(misalignedBlocks));
         }
+
+
     }
 
     private IEnumerator AcceptanceCoroutine()
@@ -1572,6 +1613,7 @@ public class Scaffolder : MonoBehaviour
         touchManager.AddAllowedToTap("Block");
         touchManager.AddAllowedToTap("KeyboardKey");
     }
+
 
     private class ModPGSlotStatus
     {

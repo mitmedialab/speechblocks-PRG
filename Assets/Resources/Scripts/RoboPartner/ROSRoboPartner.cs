@@ -322,4 +322,9 @@ public class ROSRoboPartner : MonoBehaviour, IRoboPartner {
         action_message["attention_mode"] = attentionMode;
         SendCommand(action_message);
     }
+
+    public void TriggerJumpToWordBoxEnd()
+    {
+
+    }
 }
