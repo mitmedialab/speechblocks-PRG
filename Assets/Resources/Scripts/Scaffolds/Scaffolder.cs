@@ -421,7 +421,6 @@ public class Scaffolder : MonoBehaviour
 
             if (allLettersFilled)
             {
-                Debug.Log("🎉 Word is fully complete — triggering Jibo celebration!");
                 var jiboPartner = environment.GetRoboPartner();
                 if (jiboPartner != null)
                 {
@@ -429,7 +428,6 @@ public class Scaffolder : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("⚠️ Scaffolder: No Jibo partner found for celebration.");
                 }
 
                 isCompleted = true; // prevent retriggering
