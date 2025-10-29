@@ -275,7 +275,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
             case RoboExpression.HAPPY:
         
             case RoboExpression.EXCITED:
-                switch (RandomUtil.Range("jibo-expr1", 7, 8))
+                switch (RandomUtil.Range("jibo-expr1", 6, 7))
                 {
                     case 0:
                         //Debug.Log("ANIMATOR: HAPPY WIGGLE");
@@ -289,27 +289,17 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
                         //Debug.Log("ANIMATOR: EXCITED JUMP");
                         animator.SetCoroutine(AnimateExcitedJump());
                         break;
-
-
-
-                    ////////////////////
                     case 3:
-                        animator.SetCoroutine(AnimateHappyWiggleJump());  // NEW ANIMATION
+                        animator.SetCoroutine(AnimateHappyWiggleJump());  
                         break;
                     case 4:
-                        animator.SetCoroutine(AnimateHappySpinJump());  // NEW ANIMATION
+                        animator.SetCoroutine(AnimateHappySpinJump());  
                         break;
-
-     
                     case 5:
-                        animator.SetCoroutine(JumpAndCelebrate());
-                        break;
-
-                    case 6:
                         animator.SetCoroutine(JumpToWordBoxEnd());
                         break;
-                    case 7:
-                        animator.SetCoroutine(JumpToLastPlacedBlock());
+                    case 6:
+                        animator.SetCoroutine(JumpToLastPlacedBlock()); // Current Excited Animation
                         break;
                 }       
                 break;
@@ -1136,24 +1126,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private IEnumerator AnimateHappySpinJump(float spinDuration = 1.5f, float jumpHeight = 0.5f, int spinCycles = 2)
     {
         animationType = ANIMATION_TYPE_EXPRESSION;
@@ -1229,28 +1201,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         jiboTform.position = startPos;
         jiboTform.rotation = startRot;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     private IEnumerator AnimateSadness()
@@ -1375,30 +1325,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         speechRing.transform.position = new Vector3(headPos.x, headPos.y, -5);
     }
 
-  
-
-    private IEnumerator JumpAndCelebrate()
-    {
-        // Save original position
-        Vector3 originalPosition = jiboTform.position;
-
-        // Pick one of the existing jump animations randomly, for example:
-        int choice = RandomUtil.Range("jibo-celebrate-jump", 5, 5); // match your previous logic
-        IEnumerator jumpAnimation;
-        jumpAnimation = AnimateExcitedJump();
-
-        // Run the jump animation
-        yield return CoroutineUtils.RunUntilAllStop(new List<IEnumerator> { jumpAnimation });
-
-        // Restore original position
-        jiboTform.position = originalPosition;
-
-        // Optional: pause a moment to let the celebration settle
-        yield return new WaitForSeconds(celebrationPause);
-
-        // Trigger any additional celebration effects (LED flash, sound, etc.)
-        DropSpeechRing();
-    }
 
 
     private IEnumerator AnimateWiggleSlideToWordBoxEdge(int wiggleCycles, float wiggleDuration)
@@ -1423,7 +1349,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         Vector3 startPos = jiboTform.position;
         float slideDistance = boxBounds.max.x - startPos.x; // move toward the right edge
 
-        // Optional small offset to stop before the exact edge
         slideDistance -= 0.2f;
 
         float DEFLECTION_R = Mathf.Deg2Rad * 15;
@@ -1455,52 +1380,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         RestoreAfterExpression();
     }
 
-    private IEnumerator JumpToWordBoxBottomRight()
-    {
-        animationType = ANIMATION_TYPE_EXPRESSION;
-        AnnulDeviations();
-        SmileEye();
-
-        // Pre-jump squish
-        yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
-        yield return Launch();
-
-        // Ensure we have a reference to bottomWordBox
-        if (bottomWordBox == null)
-        {
-            bottomWordBox = GameObject.FindObjectOfType<WordBox>();
-            if (bottomWordBox == null)
-            {
-                Debug.LogWarning("JumpToWordBoxBottomRight: Could not find WordBox!");
-                yield break;
-            }
-        }
-
-        // Get word box bounds
-        Bounds boxBounds = bottomWordBox.GetMyBounds();
-
-        // Compute jump target — bottom-right corner
-        Vector3 targetPos = new Vector3(
-            boxBounds.max.x,     // rightmost x
-            boxBounds.min.y,     // lowest y
-            jiboTform.position.z // keep same z
-        );
-
-        // Optional offset (so Jibo lands slightly above the box visually)
-        float liftOffset = Block.GetStandardHeight() * 0.25f;
-        targetPos.y += liftOffset;
-
-        Debug.Log($"JumpToWordBoxBottomRight → target {targetPos}");
-
-        // Perform the jump
-        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION, JUMP_HEIGHT);
-
-        // Land and recover
-        yield return Land();
-        yield return TransitionScalarParam(POSE_PARAM_SQUISH, 1, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
-
-        RestoreAfterExpression();
-    }
     private IEnumerator JumpToLastPlacedBlock()
     {
         if (bottomWordBox == null)
@@ -1530,8 +1409,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         Vector3 lastBlockWorldPos = bottomWordBox.transform.position + lastBlock.transform.localPosition;
 
         Vector3 targetPos = lastBlockWorldPos + new Vector3(0, 0.75f * cellHeight, 0);
-
-        Debug.Log($"🎯 JumpToLastPlacedBlock → target {targetPos}");
+      
 
         // Pre-jump squish
         yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
@@ -1560,7 +1438,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
 
     private IEnumerator JumpToWordBoxEnd()
     {
-        // Capture original global position BEFORE any jumps
+        // Capture original global position before any jumps
         Vector3 originalPos = jiboTform.position;
 
         animationType = ANIMATION_TYPE_EXPRESSION;
@@ -1573,7 +1451,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         // --- Launch first jump ---
         yield return Launch();
 
-        // --- Step 1: Jump to end-of-word-box ---
+        // --- Jump to end-of-word-box ---
         Vector3 firstTarget;
         GameObject lastActiveCell = bottomWordBox.GetLastActiveCell();
         if (lastActiveCell != null)
@@ -1669,18 +1547,13 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     }
 
 
-
-
     public void TriggerJumpToWordBoxEnd()
     {
         if (animator == null)
         {
-            // Should not happen but guard defensively
             Debug.LogWarning("TriggerJumpToWordBoxEnd: animator is null.");
             return;
         }
-
-        // If JumpToWordBoxEnd is already running the animator will handle queueing/replace per your needs.
         animator.SetCoroutine(JumpToWordBoxEnd());
     }
 }
