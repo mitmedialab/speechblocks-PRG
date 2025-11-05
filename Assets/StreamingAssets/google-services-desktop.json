@@ -1,27 +1,37 @@
 {
   "project_info": {
-    "project_number": "427952625470",
-    "firebase_url": "https://speechblocksdemo-default-rtdb.europe-west1.firebasedatabase.app",
-    "project_id": "speechblocksdemo",
-    "storage_bucket": "speechblocksdemo.appspot.com"
+    "project_number": "153901954252",
+    "firebase_url": "https://speechblocks-f100d-default-rtdb.firebaseio.com",
+    "project_id": "speechblocks-f100d",
+    "storage_bucket": "speechblocks-f100d.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:427952625470:android:d7d111a45c5fe000dd7e6f",
+        "mobilesdk_app_id": "1:153901954252:android:9786991bad1d879177be69",
         "android_client_info": {
           "package_name": "org.playfulwords.speechblocks"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "153901954252-lfd1170lndtaqhniublleei1g7c9mq7n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDJHJJs_mRTTcMW8bq1jRsXLPjZTHnth2Y"
+          "current_key": "AIzaSyAhe6iPwRZ8AyAnX-wcQLuO6LvzG9CJ908"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "153901954252-lfd1170lndtaqhniublleei1g7c9mq7n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

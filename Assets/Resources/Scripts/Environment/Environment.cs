@@ -42,8 +42,8 @@ public class Environment : MonoBehaviour
 
     private GameObject mainIdeaButton = null;
 
-    private const string DEFAULT_STATION_SETUP = "{group: \"default\", type: \"tablet\", log-enabled: false, video-enabled: false}";
-
+    // private const string DEFAULT_STATION_SETUP = "{group: \"default\", type: \"tablet\", log-enabled: false, video-enabled: false}";
+    private const string DEFAULT_STATION_SETUP = "{ROSIP: \"10.99.0.1\", default_user: \"u2\", group: \"g0\", type: \"tablet\", log-enabled: false, video-enabled: false}";
     // Start is called before the first frame update
     void Start()
     {
