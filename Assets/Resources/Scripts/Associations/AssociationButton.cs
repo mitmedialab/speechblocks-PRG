@@ -55,4 +55,9 @@ public class AssociationButton : MonoBehaviour, IDetailedLogging, ITappable
         }
         synthesizer.Speak(SynQuery.Seq(sequence), cause: "assoc-button-tap", keepPauses: false);
     }
+
+    public WordSuggestion GetWordSuggestion()
+    {
+        return new WordSuggestion(word_sense, reason);
+    }
 }

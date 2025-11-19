@@ -1556,6 +1556,59 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         }
         animator.SetCoroutine(JumpToWordBoxEnd());
     }
+
+
+    public void JumpToTarget(Vector3 targetPosition)
+    {
+        // Optionally clamp Z if your scene is 2D
+        Vector2 flatTarget = new Vector2(targetPosition.x, targetPosition.y);
+
+        // You can tweak the scale to match your animation’s sense of depth
+        float targetScale = 1.0f;
+
+        // Start the jump coroutine
+        StartCoroutine(Jump(flatTarget, targetScale));
+    }
+
+
+    public IEnumerator AnimateHappyWiggleJumpToTarget(Vector3 targetPos, int wiggleCycles = 2, float jumpHeight = 0.2f, float wiggleDuration = 1.5f)
+    {
+        animationType = ANIMATION_TYPE_EXPRESSION;
+        AnnulDeviations();
+        SmileEye();
+
+        Vector3 startPos = jiboTform.position;
+        Quaternion startRot = jiboTform.rotation;
+
+        float azimuth_0 = Azimuth(poseQuatParams[POSE_PARAM_FACEDIR] * Vector3.forward);
+        float DEFLECTION_R = Mathf.Deg2Rad * 15;
+
+        // Jump sequence
+        yield return PreJumpSquish(targetPos);
+        yield return Launch();
+        yield return Fly(targetPos, jiboTform.localScale.x, IN_THE_AIR_DURATION * 1.5f, jumpHeight);
+        yield return Land();
+        yield return PostJumpUnsquish();
+
+        // Wiggle Motion before jump
+        double t0 = TimeKeeper.time;
+        while (TimeKeeper.time - t0 < wiggleDuration)
+        {
+            yield return null;
+            float tWiggle = 2 * Mathf.PI * wiggleCycles * Easing.EaseInOut(
+                (float)(TimeKeeper.time - t0) / wiggleDuration);
+            float wiggleAzimuth = azimuth_0 + DEFLECTION_R * Mathf.Sin(tWiggle);
+            AssignFaceDirAndGazeDir(DirFromAzimuthAndElevation(wiggleAzimuth, 0));
+            poseScalarParams[POSE_PARAM_TILT] = TILT_NORMAL_RANGE * Mathf.Sin(tWiggle);
+        }
+
+        UnsmileEye();
+        RestoreAfterExpression();
+
+        // Place Jibo exactly on the target
+        jiboTform.position = targetPos;
+        jiboTform.rotation = startRot;
+    }
 }
 
 

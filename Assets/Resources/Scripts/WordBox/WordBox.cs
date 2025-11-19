@@ -110,7 +110,6 @@ public class WordBox : MonoBehaviour
         UpdateMyBounds();
         return myBounds;
     }
-
     
 
     public List<Block> GetBlocks()

@@ -191,7 +191,7 @@ public class Composition : MonoBehaviour
             if (null == childrenNode) continue;
             JSONArray childrenDescription = (JSONArray)childrenNode;
             if (null != childrenDescription)
-            DeserializePictureBlockHierarchy(pictureBlock.transform, childrenDescription);
+                DeserializePictureBlockHierarchy(pictureBlock.transform, childrenDescription);
         }
     }
 
@@ -243,5 +243,141 @@ public class Composition : MonoBehaviour
             PictureBlock child = childTform.GetComponent<PictureBlock>();
             if (null != child) { FillPictureBlocksList(child, pictureBlockList); }
         }
+    }
+
+    public List<GameObject> GetAllPictureBlockGameObjects()
+    {
+        List<GameObject> gos = new List<GameObject>();
+        foreach (PictureBlock pb in GetAllPictureBlocks())
+        {
+            if (pb != null && pb.gameObject != null)
+            {
+                gos.Add(pb.gameObject);
+            }
+        }
+        return gos;
+    }
+
+    public Bounds GetWorldBounds(GameObject go)
+    {
+        if (go == null) return new Bounds(Vector3.zero, Vector3.zero);
+        Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; ++i) b.Encapsulate(renderers[i].bounds);
+            return b;
+        }
+        return new Bounds(go.transform.position, Vector3.one * 0.01f);
+    }
+
+    public IEnumerator MoveObjectSmoothly(GameObject obj, Vector3 targetPos, float duration = 0.5f, Action onComplete = null)
+    {
+        if (obj == null) yield break;
+        Vector3 start = obj.transform.position;
+        float elapsed = 0f;
+        if (duration <= 0f)
+        {
+            obj.transform.position = targetPos;
+            onComplete?.Invoke();
+            yield break;
+        }
+        while (elapsed < duration)
+        {
+            float t = Mathf.Clamp01(elapsed / duration);
+            obj.transform.position = Vector3.Lerp(start, targetPos, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        obj.transform.position = targetPos;
+        onComplete?.Invoke();
+    }
+
+    public void MoveObjectNextTo(GameObject objToMove, GameObject referenceObj, Vector3 direction, float spacing = 0.02f, bool smooth = true, float duration = 0.4f)
+    {
+        if (objToMove == null || referenceObj == null) return;
+        Bounds refBounds = GetWorldBounds(referenceObj);
+        Bounds moveBounds = GetWorldBounds(objToMove);
+        Vector3 dir = direction.normalized;
+        if (dir == Vector3.zero) dir = Vector3.right;
+        Vector3 axis;
+        if (Mathf.Abs(Vector3.Dot(dir, Vector3.right)) > 0.707f) axis = Vector3.right;
+        else if (Mathf.Abs(Vector3.Dot(dir, Vector3.up)) > 0.707f) axis = Vector3.up;
+        else axis = Vector3.forward;
+
+        Vector3 refEdge;
+        Vector3 moveExtents = moveBounds.extents;
+        if (axis == Vector3.right)
+        {
+            if (Vector3.Dot(dir, Vector3.right) > 0)
+                refEdge = new Vector3(refBounds.max.x, refBounds.center.y, refBounds.center.z) + Vector3.right * (moveExtents.x + spacing);
+            else
+                refEdge = new Vector3(refBounds.min.x, refBounds.center.y, refBounds.center.z) + Vector3.left * (moveExtents.x + spacing);
+        }
+        else if (axis == Vector3.up)
+        {
+            if (Vector3.Dot(dir, Vector3.up) > 0)
+                refEdge = new Vector3(refBounds.center.x, refBounds.max.y, refBounds.center.z) + Vector3.up * (moveExtents.y + spacing);
+            else
+                refEdge = new Vector3(refBounds.center.x, refBounds.min.y, refBounds.center.z) + Vector3.down * (moveExtents.y + spacing);
+        }
+        else
+        {
+            if (Vector3.Dot(dir, Vector3.forward) > 0)
+                refEdge = new Vector3(refBounds.center.x, refBounds.center.y, refBounds.max.z) + Vector3.forward * (moveExtents.z + spacing);
+            else
+                refEdge = new Vector3(refBounds.center.x, refBounds.center.y, refBounds.min.z) + Vector3.back * (moveExtents.z + spacing);
+        }
+
+        Vector3 desiredPos = refEdge;
+        if (smooth) StartCoroutine(MoveObjectSmoothly(objToMove, desiredPos, duration));
+        else objToMove.transform.position = desiredPos;
+    }
+
+    public void MoveObjectOnTopOf(GameObject objToMove, GameObject targetObj, bool smooth = true, float duration = 0.4f, Action onComplete = null)
+    {
+        if (objToMove == null || targetObj == null) return;
+        Bounds targetBounds = GetWorldBounds(targetObj);
+        Vector3 placePos = targetBounds.center + Vector3.up * 0.001f; // tiny lift to avoid z-fighting
+        if (smooth)
+        {
+            StartCoroutine(MoveObjectSmoothly(objToMove, placePos, duration, () =>
+            {
+                CreatePictureBookContainer(objToMove, targetObj);
+                onComplete?.Invoke();
+            }));
+        }
+        else
+        {
+            objToMove.transform.position = placePos;
+            CreatePictureBookContainer(objToMove, targetObj);
+            onComplete?.Invoke();
+        }
+    }
+
+    public GameObject CreatePictureBookContainer(GameObject childA, GameObject childB)
+    {
+        if (childA == null || childB == null) return null;
+        GameObject container;
+        if (pictureBlockPrefab != null)
+        {
+            container = Instantiate(pictureBlockPrefab, transform);
+            container.name = "PictureBook";
+            container.transform.position = (GetWorldBounds(childA).center + GetWorldBounds(childB).center) / 2f;
+        }
+        else
+        {
+            container = new GameObject("PictureBook");
+            container.transform.SetParent(transform, true);
+            container.transform.position = (GetWorldBounds(childA).center + GetWorldBounds(childB).center) / 2f;
+        }
+
+        childA.transform.SetParent(container.transform, true);
+        childB.transform.SetParent(container.transform, true);
+
+
+        PictureBlock pb = container.GetComponent<PictureBlock>();
+
+        return container;
     }
 }

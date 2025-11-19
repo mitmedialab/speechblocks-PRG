@@ -28,6 +28,8 @@ public class AssociationsPanel : MonoBehaviour {
     private float BUTTON_SPACING;
     private const double MAX_CANVAS_WAIT_TIME = 10;
 
+    private List<WordSuggestion> currentSuggestions = new List<WordSuggestion>();
+
     public void Start() {
         GameObject stageObject = GameObject.FindWithTag("StageObject");
         assocLib = stageObject.GetComponent<AssociationLibrary>();
@@ -43,9 +45,18 @@ public class AssociationsPanel : MonoBehaviour {
         ideaButton.SetActive(false);
         closeButton.SetActive(false);
         BUTTON_SPACING = 1.25f * associationButtonPrefab.GetComponent<AssociationButton>().GetButtonSize();
+
+
+        currentSuggestions = new List<WordSuggestion>
+        {
+            new WordSuggestion("cat", "default"),
+            new WordSuggestion("sun", "default"),
+            new WordSuggestion("tree", "default")
+        };
     }
 
     public void Invoke(string word_sense, string cause) {
+        currentSuggestions = new List<WordSuggestion> { new WordSuggestion(word_sense, null) };
         associationsEverInvoked = true;
         if (null != currentCoroutine) { StopCoroutine(currentCoroutine); }
         currentCoroutine = StartCoroutine(InvocationCoroutine(word_sense, cause));
@@ -53,6 +64,7 @@ public class AssociationsPanel : MonoBehaviour {
 
     public void Invoke(List<WordSuggestion> suggestions, string cause)
     {
+        currentSuggestions = suggestions;
         if (null != currentCoroutine) { StopCoroutine(currentCoroutine); }
         currentCoroutine = StartCoroutine(InvocationCoroutine(suggestions, cause));
     }
@@ -276,5 +288,15 @@ public class AssociationsPanel : MonoBehaviour {
         string[] related = { "could fit", "might be useful" };
         prompt = $"{RandomUtil.PickOne("assoc-b3", theseAre)} {RandomUtil.PickOne("assoc-b4", aFew)} {RandomUtil.PickOne("assoc-b5", words)} {RandomUtil.PickOne("assoc-b6", that)} {RandomUtil.PickOne("assoc-b7", related)}.";
         synthesizer.Speak(prompt, cause: cause);
+    }
+
+    public List<WordSuggestion> GetSuggestionsForWord(string wordSense)
+    {
+        if (assocLib == null || string.IsNullOrEmpty(wordSense)) return new List<WordSuggestion>();
+
+        List<string> assocWords = assocLib.GetAssociations(wordSense);
+        if (assocWords.Count == 0) return new List<WordSuggestion>();
+
+        return assocWords.Select(w => new WordSuggestion(w, null)).ToList();
     }
 }
