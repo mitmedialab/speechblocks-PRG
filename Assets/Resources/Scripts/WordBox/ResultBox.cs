@@ -53,10 +53,16 @@ public class ResultBox : MonoBehaviour
         UpdateEditButton();
 
         // Wait 5 seconds
-        yield return new WaitForSeconds(3f);
+        yield return new WaitForSeconds(0.1f);
+
+        CoCreateButton coCreateButton = GameObject.FindObjectOfType<CoCreateButton>();
+        if (coCreateButton != null)
+        {
+            coCreateButton.SetSeedWord(currentWord);
+        }
 
         // Spawn a picture block
-        SpawnRandomPictureInScene(currentWord);
+        //SpawnRandomPictureInScene(currentWord);
     }
 
     private void SpawnRandomPictureInScene(string seedWord)
