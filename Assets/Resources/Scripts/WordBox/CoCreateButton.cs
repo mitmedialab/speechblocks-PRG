@@ -61,6 +61,9 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
         Debug.Log("[CoCreateButton] Spawned picture: " + chosenWord);
 
+        float[] possibleScales = { 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f };
+        float chosenScale = possibleScales[Random.Range(0, possibleScales.Length)];
+
         // Find Jibo in scene
         VirtualJiboPartner jibo = GameObject.FindObjectOfType<VirtualJiboPartner>();
         if (jibo != null)
@@ -69,34 +72,35 @@ public class CoCreateButton : MonoBehaviour, ITappable
             Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f); // jump on top
             Vector3 canvasTarget = FindFreeCanvasSpot(picture);
 
-            StartCoroutine(JumpOntoBox(jibo, picture, canvasTarget));
+            StartCoroutine(JumpOntoBoxAndMovePicture(jibo, picture, canvasTarget, wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
+
         }
     }
-    private System.Collections.IEnumerator JumpOntoBox(
-    VirtualJiboPartner jibo, GameObject picture, Vector3 canvasTarget,
-    int wiggleCycles = 2, float slideDuration = 1.0f)
+
+
+    private System.Collections.IEnumerator JumpOntoBoxAndMovePicture(
+        VirtualJiboPartner jibo, GameObject picture, Vector3 canvasTarget,
+        int wiggleCycles = 2, float slideDuration = 1.0f, float scaleBy = 1.0f)
     {
         if (jibo == null || picture == null)
             yield break;
 
-        // box_height
+        // STEP 1: Jump up onto the picture
         float boxHeight = 2.5f;
         float halfHeight = boxHeight * 0.5f;
+        Vector3 jumpTarget = picture.transform.position + new Vector3(0f, halfHeight, 0f);
 
-        Vector3 jumpTarget = picture.transform.position + new Vector3(0, halfHeight, 0);
-
-        Debug.Log($"[JumpOntoBox] JumpTarget = {jumpTarget}, boxHeight = {boxHeight}");
-
-        // Step 1: Jump up onto the box
         yield return jibo.AnimateHappyWiggleJumpToTarget(
             jumpTarget,
             wiggleCycles,
             jumpHeight: halfHeight
         );
 
-        // Step 2: Slide both objects
+        // STEP 2: Slide both Jibo and the picture to the canvas target
         Vector3 startJiboPos = jibo.transform.position;
         Vector3 startPicPos = picture.transform.position;
+        Vector3 startScale = picture.transform.localScale; // store original scale
+        Vector3 targetScale = startScale * scaleBy; // double size
 
         double startTime = TimeKeeper.time;
 
@@ -107,12 +111,15 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
             jibo.transform.position = Vector3.Lerp(startJiboPos, canvasTarget, easedT);
             picture.transform.position = Vector3.Lerp(startPicPos, canvasTarget, easedT);
+            picture.transform.localScale = Vector3.Lerp(startScale, targetScale, easedT);
 
             yield return null;
         }
 
+        // Snap to final position and scale
         jibo.transform.position = canvasTarget;
         picture.transform.position = canvasTarget;
+        picture.transform.localScale = targetScale;
     }
 
     private Vector3 FindFreeCanvasSpot(GameObject picture)

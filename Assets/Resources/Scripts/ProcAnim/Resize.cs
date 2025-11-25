@@ -28,13 +28,24 @@ public class Resize : MonoBehaviour, IAnimation {
 
     public void Start()
     {
-        //Debug.Log("STARTED");
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        }
+
+        if (spriteRenderer == null)
+        {
+            Debug.LogError("[Resize] No SpriteRenderer found, cannot resize!");
+            isGoing = false;
+            return;
+        }
+
         isGoing = true;
         startTime = TimeKeeper.time;
         startX = spriteRenderer.size.x;
         startY = spriteRenderer.size.y;
     }
-
     public bool IsGoing()
     {
         return isGoing;
