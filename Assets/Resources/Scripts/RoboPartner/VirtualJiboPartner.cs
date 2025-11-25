@@ -554,7 +554,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         }
     }
 
-    private void AssignObjectOfInterest(GameObject objOfInterest)
+    public void AssignObjectOfInterest(GameObject objOfInterest)
     {
         objectOfInterest = objOfInterest;
         if (lookingAtTablet && animationType <= ANIMATION_TYPE_LOOKAT)

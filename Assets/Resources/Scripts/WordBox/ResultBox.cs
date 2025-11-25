@@ -198,8 +198,14 @@ public class ResultBox : MonoBehaviour
     {
         if (spawnedPictureBlock != null)
         {
-            Logging.LogDeath(spawnedPictureBlock, "spawn-place-clear");
-            Destroy(spawnedPictureBlock);
+            // Only destroy the spawned picture if it is still a child of this ResultBox.
+            // If the player moved it to the canvas, do NOT destroy it.
+            if (spawnedPictureBlock.transform.parent == transform)
+            {
+                Logging.LogDeath(spawnedPictureBlock, "spawn-place-clear");
+                Destroy(spawnedPictureBlock);
+            }
+
             spawnedPictureBlock = null;
         }
     }
