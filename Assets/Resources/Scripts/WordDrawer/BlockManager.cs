@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 
-public class
-    BlockManager : MonoBehaviour {
+public class BlockManager : MonoBehaviour {
     private WordBox wordBox = null;
 
     private void Start()

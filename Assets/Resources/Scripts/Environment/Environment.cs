@@ -209,6 +209,14 @@ public class Environment : MonoBehaviour
         }
     }
 
+    public (byte[] sceneSnapshot, List<string> onsetItems) GetSceneSnapshotAndOnsetItems()
+    {
+        Composition composition = GameObject.FindWithTag("CompositionRoot").GetComponent<Composition>();
+        byte[] sceneSnapshot = composition.GetSceneSnapshotAsBytes();
+        List<string> onsetItems = composition.GetOnsetItems();
+        return (sceneSnapshot, onsetItems);
+    }
+
     public string GetStationType()
     {
         return type;
@@ -375,6 +383,7 @@ public class Environment : MonoBehaviour
                 appHasFocus = true;
                 Logging.OnRegainedFocus();
                 if (recordingDecisionMade && null == replayer) { StartRecording(); }
+                StartCoroutine((roboPartner as VirtualJiboPartner).GetRobotCollaborativeBehavior("Apple"));
             }
             else
             {
