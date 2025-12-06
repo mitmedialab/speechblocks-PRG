@@ -102,6 +102,33 @@ public class WordDrawer : Panel {
         }
     }
 
+
+    public void SlideWordDrawerOutOfView(bool instant = false)
+    {
+
+        OnRetract();
+        Vector3 targetPosition = new Vector3(transform.localPosition.x, -10f, -10f);
+
+        if (instant)
+        {
+            transform.localPosition = targetPosition;
+        }
+        else
+        {
+            if (animationMaster != null)
+            {
+                animationMaster.StartLocalGlide(gameObject, targetPosition, 0.5f);
+            }
+            else
+            {
+                // fallback if animationMaster is missing
+                transform.localPosition = targetPosition;
+            }
+        }
+
+    }
+
+
     public const float DEPLOYMENT_TIME = 0.25f;
 
     private Environment environment;

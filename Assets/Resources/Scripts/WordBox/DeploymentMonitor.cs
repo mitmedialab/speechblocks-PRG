@@ -46,4 +46,31 @@ public class DeploymentMonitor : MonoBehaviour
         }
         Destroy(this);
     }
+
+    public void ForceDeploy()
+
+        // Regular Deploy But Doesn't Require Touch
+    {
+        StopAllCoroutines();                    
+        StartCoroutine(ForceDeployRoutine());   
+    }
+
+    private IEnumerator ForceDeployRoutine()
+    {
+        DeploymentMonitor.Deploy(gameObject);
+
+        yield return new WaitForSeconds(WordDrawer.DEPLOYMENT_TIME + 0.1f);
+
+        Draggable draggable = GetComponent<Draggable>();
+        if (draggable != null)
+            draggable.PutOnTop();
+
+        ZSorting.SetSortingLayer(gameObject, "Default");
+
+        
+        foreach (var cb in callbacks)
+            cb();
+
+        Destroy(this);
+    }
 }

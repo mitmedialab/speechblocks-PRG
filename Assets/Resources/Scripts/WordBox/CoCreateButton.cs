@@ -61,7 +61,7 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
         Debug.Log("[CoCreateButton] Spawned picture: " + chosenWord);
 
-        float[] possibleScales = { 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f };
+        float[] possibleScales = { 0.5f, 0.75f, 1f, 1.25f };
         float chosenScale = possibleScales[Random.Range(0, possibleScales.Length)];
 
         // Find Jibo in scene
@@ -70,11 +70,157 @@ public class CoCreateButton : MonoBehaviour, ITappable
         {
             // Compute target positions
             Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f); // jump on top
-            Vector3 canvasTarget = FindFreeCanvasSpot(picture);
+            //Vector3 canvasTarget = FindFreeCanvasSpot(picture);
+            RelativePlacement placement = GetRandomPlacement();
+            Debug.Log($"[CoCreateButton] Directional placement chosen: {placement}");
+
+            // find the previously placed picture (fallback to random free-spot behavior if none)
+            GameObject prev = GameObject.FindObjectOfType<Composition>()?.GetMostRecentPictureBlock();
+
+            Vector3 canvasTarget = prev != null
+                ? ComputeDirectionalCanvasSpot(prev, picture, placement)
+                : FindFreeCanvasSpot(picture);
+
+
+            if (float.IsNaN(canvasTarget.x))
+            {
+                Debug.LogWarning("[CoCreateButton] No free canvas spot — canceling spawn.");
+
+                Destroy(picture);
+                return;
+            }
+
+            canvasTarget = ClampToCanvasBounds(canvasTarget);
 
             StartCoroutine(JumpOntoBoxAndMovePicture(jibo, picture, canvasTarget, wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
 
         }
+    }
+
+    public enum RelativePlacement
+    {
+        Left,
+        Right,
+        Up,
+        Down,
+        //TopRight,
+        //TopLeft,
+        //BottomRight,
+        //BottomLeft
+    }
+
+    private RelativePlacement GetRandomPlacement()
+    {
+        var values = System.Enum.GetValues(typeof(RelativePlacement));
+        return (RelativePlacement)values.GetValue(Random.Range(0, values.Length));
+    }
+
+    private Vector3 ComputeDirectionalCanvasSpot(GameObject prev, GameObject picture, RelativePlacement placement)
+    {
+        Composition comp = GameObject.FindObjectOfType<Composition>();
+        if (comp == null)
+        {
+            Debug.LogWarning("[CoCreateButton] Composition not found, using prev position.");
+            return prev.transform.position;
+        }
+
+        // Bounds
+        Bounds prevBounds = comp.GetWorldBounds(prev);
+        Bounds picBounds = comp.GetWorldBounds(picture);
+
+        float padding = 0.2f;
+
+        float stepX = picBounds.size.x + padding;
+        float stepY = picBounds.size.y + padding;
+
+        // Start from prev
+        Vector3 basePos = prevBounds.center;
+
+        Vector3 candidate = basePos;
+
+        switch (placement)
+        {
+            case RelativePlacement.Left:
+                candidate.x -= stepX;
+                break;
+
+            case RelativePlacement.Right:
+                candidate.x += stepX;
+                break;
+
+            case RelativePlacement.Up:
+                candidate.y += stepY;
+                break;
+
+            case RelativePlacement.Down:
+                candidate.y -= stepY;
+                break;
+
+            //case RelativePlacement.TopRight:
+            //    candidate.x += stepX;
+            //    candidate.y += stepY;
+            //    break;
+
+            //case RelativePlacement.TopLeft:
+            //    candidate.x -= stepX;
+            //    candidate.y += stepY;
+            //    break;
+
+            //case RelativePlacement.BottomRight:
+            //    candidate.x += stepX;
+            //    candidate.y -= stepY;
+            //    break;
+
+            //case RelativePlacement.BottomLeft:
+            //    candidate.x -= stepX;
+            //    candidate.y -= stepY;
+            //    break;
+        }
+
+        candidate = SnapToCanvasGrid(candidate, stepX, stepY);
+
+        // Clamp to canvas bounds (-6..6, -4..4)
+        candidate = ClampToCanvasBounds(candidate);
+
+        // Check overlap with existing pictures
+        List<GameObject> allPics = comp.GetAllPictureBlockGameObjects();
+        allPics.Remove(picture);
+        allPics.Remove(prev); // allow touching prev only by edge
+
+        Bounds candidateBounds = new Bounds(candidate, picBounds.size);
+
+        foreach (GameObject other in allPics)
+        {
+            Bounds otherBounds = comp.GetWorldBounds(other);
+            if (candidateBounds.Intersects(otherBounds))
+            {
+                Debug.Log($"[CoCreateButton] Direction {placement} is blocked by overlap, falling back to FindFreeCanvasSpot()");
+                return FindFreeCanvasSpot(picture); // graceful fallback
+            }
+        }
+
+        Debug.Log($"[CoCreateButton] Directional placement '{placement}' resolved at: {candidate}");
+        return candidate;
+    }
+
+    private Vector3 SnapToCanvasGrid(Vector3 pos, float stepX, float stepY)
+    {
+        float minX = -6f, minY = -4f;
+
+        float snappedX = minX + Mathf.Round((pos.x - minX) / stepX) * stepX;
+        float snappedY = minY + Mathf.Round((pos.y - minY) / stepY) * stepY;
+
+        return new Vector3(snappedX, snappedY, pos.z);
+    }
+
+    private Vector3 ClampToCanvasBounds(Vector3 pos)
+    {
+        float minX = -6f, maxX = 6f;
+        float minY = -4f, maxY = 4f;
+
+        pos.x = Mathf.Clamp(pos.x, minX, maxX);
+        pos.y = Mathf.Clamp(pos.y, minY, maxY);
+        return pos;
     }
 
 
@@ -120,6 +266,12 @@ public class CoCreateButton : MonoBehaviour, ITappable
         jibo.transform.position = canvasTarget;
         picture.transform.position = canvasTarget;
         picture.transform.localScale = targetScale;
+
+        Composition comp = GameObject.FindObjectOfType<Composition>();
+        if (comp != null)
+        {
+            comp.RegisterPlacedPicture(picture);
+        }
     }
 
     private Vector3 FindFreeCanvasSpot(GameObject picture)
@@ -214,8 +366,8 @@ public class CoCreateButton : MonoBehaviour, ITappable
             return chosen;
         }
 
-        Debug.LogWarning("[CoCreateButton] Canvas is full, returning current position.");
-        return picture.transform.position;
+        Debug.LogWarning("[CoCreateButton] Canvas is full.");
+        return new Vector3(float.NaN, float.NaN, float.NaN);
     }
     public void SetSeedWord(string newWord)
     {

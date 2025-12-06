@@ -177,9 +177,14 @@ public class ResultBox : MonoBehaviour
         if (avatarPicker.IsRetracted()) { avatarPicker.Deploy(wordSense, deployInstantly: false); }
     }
 
-    private void SpawnPictureBlock()
+    public void SpawnPictureBlock()
     {
         spawnedPictureBlock = (GameObject)Instantiate(Resources.Load("Prefabs/PictureBlock"));
+        Composition comp = GameObject.FindObjectOfType<Composition>();
+        if (comp != null)
+        {
+            comp.RegisterPlacedPicture(spawnedPictureBlock);
+        }
         PictureBlock thePB = spawnedPictureBlock.GetComponent<PictureBlock>();
         thePB.Setup(transform.position, wordSense: wordSense, sortingLayer: "word_drawer");
         thePB.transform.SetParent(transform, false);

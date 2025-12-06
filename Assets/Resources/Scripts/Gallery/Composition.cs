@@ -14,6 +14,7 @@ public class Composition : MonoBehaviour
     private string sceneID = null;
     private string[] allowedForScreenshot = new string[] { "CompositionRoot", "MainCamera", "StageObject" };
     private JSONArray emptyJSONArray = new JSONArray();
+    private GameObject _lastPlacedBlock;
 
     private void Start()
     {
@@ -187,6 +188,7 @@ public class Composition : MonoBehaviour
             JSONNode pictureblockDescription = description[i];
             PictureBlock pictureBlock = Instantiate(pictureBlockPrefab).GetComponent<PictureBlock>();
             pictureBlock.Setup(rootTransform, pictureblockDescription);
+            RegisterPlacedPicture(pictureBlock.gameObject);
             JSONNode childrenNode = pictureblockDescription["children"];
             if (null == childrenNode) continue;
             JSONArray childrenDescription = (JSONArray)childrenNode;
@@ -379,5 +381,16 @@ public class Composition : MonoBehaviour
         PictureBlock pb = container.GetComponent<PictureBlock>();
 
         return container;
+    }
+
+    public void RegisterPlacedPicture(GameObject block)
+    {
+        if (block != null)
+            _lastPlacedBlock = block;
+    }
+
+    public GameObject GetMostRecentPictureBlock()
+    {
+        return _lastPlacedBlock;
     }
 }
