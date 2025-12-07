@@ -107,7 +107,15 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
                 canvasTarget = ClampToCanvasBounds(canvasTarget);
 
-                StartCoroutine(JumpOntoBoxAndMovePicture(jibo, picture, canvasTarget, wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale, onComplete: onFinished));
+                OpenAIAgent agent = FindObjectOfType<OpenAIAgent>();
+
+                string narration = agent.GetNarrativeResult()?.focused_chain;
+
+                // fallback if missing
+                if (string.IsNullOrEmpty(narration))
+                    narration = "Look what I made!";
+
+                StartCoroutine(SpeakThenMove(jibo, picture, canvasTarget, chosenScale, narration, onFinished));
             }));
         }
         else
@@ -116,6 +124,36 @@ public class CoCreateButton : MonoBehaviour, ITappable
         }
 
         yield return null;
+    }
+
+    private IEnumerator SpeakThenMove(
+     VirtualJiboPartner jibo, GameObject picture, Vector3 canvasTarget,
+     float chosenScale, string narration, System.Action onFinished)
+    {
+        var synth = FindObjectOfType<SynthesizerController>();
+
+        // 1. Speak LLM narration first (blocking)
+        if (synth != null && !string.IsNullOrEmpty(narration))
+        {
+            // EXACTLY the same pattern as ConversationMaster uses
+            yield return synth.SpeechCoroutine(
+                narration,
+                cause: "cocreate"
+            );
+        }
+
+        // 2. Move picture AFTER speaking finishes
+        yield return StartCoroutine(
+            JumpOntoBoxAndMovePicture(
+                jibo,
+                picture,
+                canvasTarget,
+                wiggleCycles: 2,
+                slideDuration: 1.0f,
+                scaleBy: chosenScale,
+                onComplete: onFinished
+            )
+        );
     }
 
     // --- Jump and move coroutine with callback ---
