@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 public class CoCreateButton : MonoBehaviour, ITappable
@@ -7,6 +8,8 @@ public class CoCreateButton : MonoBehaviour, ITappable
     public GameObject gameObject => base.gameObject;
 
     private AssociationsPanel assocPanel;
+    private Coroutine activeRoutine;
+    private bool tapEnabled = false;
 
     void Start()
     {
@@ -17,6 +20,8 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
     public void OnTap(TouchInfo touchInfo)
     {
+        if (!tapEnabled)
+            return;
         SpawnPicture();
     }
 
@@ -47,7 +52,7 @@ public class CoCreateButton : MonoBehaviour, ITappable
         var behavior = GameObject.FindObjectOfType<VirtualJiboPartner>();
         if (behavior != null)
             behavior.AssignObjectOfInterest(picture);
-            Debug.LogWarning("looking at image");
+        Debug.LogWarning("looking at image");
 
         GameObject compositionRoot = GameObject.FindWithTag("CompositionRoot");
         if (compositionRoot != null)
@@ -92,7 +97,9 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
             canvasTarget = ClampToCanvasBounds(canvasTarget);
 
-            StartCoroutine(JumpOntoBoxAndMovePicture(jibo, picture, canvasTarget, wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
+            activeRoutine = StartCoroutine(JumpOntoBoxAndMovePicture(
+                jibo, picture, canvasTarget,
+                wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
 
         }
     }
@@ -156,25 +163,25 @@ public class CoCreateButton : MonoBehaviour, ITappable
                 candidate.y -= stepY;
                 break;
 
-            //case RelativePlacement.TopRight:
-            //    candidate.x += stepX;
-            //    candidate.y += stepY;
-            //    break;
+                //case RelativePlacement.TopRight:
+                //    candidate.x += stepX;
+                //    candidate.y += stepY;
+                //    break;
 
-            //case RelativePlacement.TopLeft:
-            //    candidate.x -= stepX;
-            //    candidate.y += stepY;
-            //    break;
+                //case RelativePlacement.TopLeft:
+                //    candidate.x -= stepX;
+                //    candidate.y += stepY;
+                //    break;
 
-            //case RelativePlacement.BottomRight:
-            //    candidate.x += stepX;
-            //    candidate.y -= stepY;
-            //    break;
+                //case RelativePlacement.BottomRight:
+                //    candidate.x += stepX;
+                //    candidate.y -= stepY;
+                //    break;
 
-            //case RelativePlacement.BottomLeft:
-            //    candidate.x -= stepX;
-            //    candidate.y -= stepY;
-            //    break;
+                //case RelativePlacement.BottomLeft:
+                //    candidate.x -= stepX;
+                //    candidate.y -= stepY;
+                //    break;
         }
 
         candidate = SnapToCanvasGrid(candidate, stepX, stepY);
@@ -369,8 +376,19 @@ public class CoCreateButton : MonoBehaviour, ITappable
         Debug.LogWarning("[CoCreateButton] Canvas is full.");
         return new Vector3(float.NaN, float.NaN, float.NaN);
     }
+
     public void SetSeedWord(string newWord)
     {
         seedWord = newWord;
+    }
+
+    public IEnumerator TriggerCoCreateAndWait()
+    {
+        // This runs the normal spawn logic
+        SpawnPicture();
+
+        // If a Jibo movement coroutine is running, wait for it
+        if (activeRoutine != null)
+            yield return activeRoutine;
     }
 }
