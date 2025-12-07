@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Collections;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CoCreateButton : MonoBehaviour, ITappable
@@ -9,7 +9,7 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
     private AssociationsPanel assocPanel;
     private Coroutine activeRoutine;
-    private bool tapEnabled = false;
+    private bool tapEnabled = true;
 
     void Start()
     {
@@ -18,20 +18,39 @@ public class CoCreateButton : MonoBehaviour, ITappable
             Debug.LogWarning("[CoCreateButton] AssociationsPanel not found. Using fallback seedWord only.");
     }
 
+    
     public void OnTap(TouchInfo touchInfo)
     {
-        if (!tapEnabled)
-            return;
-        SpawnPicture();
+        // Call internal version with no callback
+        OnTapInternal(null);
     }
 
-    private void SpawnPicture()
+    
+    public void OnTap(System.Action onFinished)
+    {
+        OnTapInternal(onFinished);
+    }
+
+    
+    private void OnTapInternal(System.Action onFinished)
+    {
+        if (!tapEnabled)
+        {
+            onFinished?.Invoke();
+            return;
+        }
+
+        StartCoroutine(SpawnPictureCoroutine(onFinished));
+    }
+
+    private IEnumerator SpawnPictureCoroutine(System.Action onFinished)
     {
         GameObject prefab = Resources.Load<GameObject>("Prefabs/PictureBlock");
         if (prefab == null)
         {
             Debug.LogWarning("[CoCreateButton] PictureBlock prefab not found!");
-            return;
+            onFinished?.Invoke();
+            yield break;
         }
 
         string chosenWord = seedWord;
@@ -52,7 +71,6 @@ public class CoCreateButton : MonoBehaviour, ITappable
         var behavior = GameObject.FindObjectOfType<VirtualJiboPartner>();
         if (behavior != null)
             behavior.AssignObjectOfInterest(picture);
-        Debug.LogWarning("looking at image");
 
         GameObject compositionRoot = GameObject.FindWithTag("CompositionRoot");
         if (compositionRoot != null)
@@ -66,38 +84,93 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
         Debug.Log("[CoCreateButton] Spawned picture: " + chosenWord);
 
-        // Find Jibo in scene
+        // Trigger Jibo behavior
         VirtualJiboPartner jibo = GameObject.FindObjectOfType<VirtualJiboPartner>();
         if (jibo != null)
         {
-            //Vector3 canvasTarget = FindFreeCanvasSpot(picture);
-            // PlacementUtil.RelativePlacement placement = PlacementUtil.GetRandomPlacement();
-            // Debug.Log($"[CoCreateButton] Directional placement chosen: {placement}");
-            
-            StartCoroutine(jibo.GetRobotCollaborativeBehavior(chosenWord, (placement, chosenScale, related_object) =>
+            activeRoutine = StartCoroutine(jibo.GetRobotCollaborativeBehavior(chosenWord, (placement, chosenScale, related_object) =>
             {
-                // Compute target positions
-                Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f); // jump on top
-                // find the previously placed picture (fallback to random free-spot behavior if none)
+                Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f);
                 GameObject prev = GameObject.FindObjectOfType<Composition>()?.GetMostRecentPictureBlock();
 
                 Vector3 canvasTarget = prev != null
                     ? ComputeDirectionalCanvasSpot(prev, picture, placement)
                     : FindFreeCanvasSpot(picture);
+
                 if (float.IsNaN(canvasTarget.x))
                 {
                     Debug.LogWarning("[CoCreateButton] No free canvas spot — canceling spawn.");
                     Destroy(picture);
+                    onFinished?.Invoke();
                     return;
                 }
-            canvasTarget = ClampToCanvasBounds(canvasTarget);
 
-            activeRoutine = StartCoroutine(JumpOntoBoxAndMovePicture(
-                jibo, picture, canvasTarget,
-                wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
+                canvasTarget = ClampToCanvasBounds(canvasTarget);
+
+                StartCoroutine(JumpOntoBoxAndMovePicture(jibo, picture, canvasTarget, wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale, onComplete: onFinished));
             }));
         }
+        else
+        {
+            onFinished?.Invoke();
+        }
+
+        yield return null;
     }
+
+    // --- Jump and move coroutine with callback ---
+    private IEnumerator JumpOntoBoxAndMovePicture(VirtualJiboPartner jibo, GameObject picture, Vector3 canvasTarget,
+        int wiggleCycles = 2, float slideDuration = 1.0f, float scaleBy = 1.0f, System.Action onComplete = null)
+    {
+        if (jibo == null || picture == null)
+        {
+            onComplete?.Invoke();
+            yield break;
+        }
+
+        float boxHeight = 2.5f;
+        float halfHeight = boxHeight * 0.5f;
+        Vector3 jumpTarget = picture.transform.position + new Vector3(0f, halfHeight, 0f);
+
+        yield return jibo.AnimateHappyWiggleJumpToTarget(jumpTarget, wiggleCycles, jumpHeight: halfHeight);
+
+        Vector3 startJiboPos = jibo.transform.position;
+        Vector3 startPicPos = picture.transform.position;
+        Vector3 startScale = picture.transform.localScale;
+        Vector3 targetScale = startScale * scaleBy;
+
+        double startTime = TimeKeeper.time;
+        while (TimeKeeper.time - startTime < slideDuration)
+        {
+            float t = (float)((TimeKeeper.time - startTime) / slideDuration);
+            float easedT = Easing.EaseInOut(t);
+
+            jibo.transform.position = Vector3.Lerp(startJiboPos, canvasTarget, easedT);
+            picture.transform.position = Vector3.Lerp(startPicPos, canvasTarget, easedT);
+            picture.transform.localScale = Vector3.Lerp(startScale, targetScale, easedT);
+
+            yield return null;
+        }
+
+        jibo.transform.position = canvasTarget;
+        picture.transform.position = canvasTarget;
+        picture.transform.localScale = targetScale;
+
+        Composition comp = GameObject.FindObjectOfType<Composition>();
+        if (comp != null)
+            comp.RegisterPlacedPicture(picture);
+
+        onComplete?.Invoke();
+    }
+
+
+    public void SetSeedWord(string newWord)
+    {
+        seedWord = newWord;
+        Debug.Log("[CoCreateButton] Seed word set to: " + seedWord);
+    }
+
+    //
 
     private Vector3 ComputeDirectionalCanvasSpot(GameObject prev, GameObject picture, PlacementUtil.RelativePlacement placement)
     {
@@ -354,19 +427,4 @@ public class CoCreateButton : MonoBehaviour, ITappable
         return new Vector3(float.NaN, float.NaN, float.NaN);
     }
 
-    public void SetSeedWord(string newWord)
-    {
-        seedWord = newWord;
-        Debug.Log("[CoCreateButton] Seed word set to: " + seedWord);
-    }
-
-    public IEnumerator TriggerCoCreateAndWait()
-    {
-        // This runs the normal spawn logic
-        SpawnPicture();
-
-        // If a Jibo movement coroutine is running, wait for it
-        if (activeRoutine != null)
-            yield return activeRoutine;
-    }
 }

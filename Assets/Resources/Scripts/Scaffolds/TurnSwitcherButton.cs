@@ -1,7 +1,5 @@
 ﻿using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
-
 
 public class TurnSwitcherButton : MonoBehaviour
 {
@@ -23,29 +21,32 @@ public class TurnSwitcherButton : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (coCreate == null)
+        {
+            Debug.LogWarning("[TurnSwitcherButton] No CoCreateButton found!");
+            return;
+        }
+
         if (isYourTurn)
         {
-            // Switch to Jibo turn
-            isYourTurn = false;
-            sr.sprite = jiboTurnSprite;
-
-            // Start Jibo's action
             StartCoroutine(JiboTurnSequence());
         }
     }
 
     private IEnumerator JiboTurnSequence()
     {
-        
+        // Switch to Jibo turn sprite
         sr.sprite = jiboTurnSprite;
+        isYourTurn = false;
 
-        
-        if (coCreate != null)
-            yield return coCreate.TriggerCoCreateAndWait();
+        // Trigger the regular spawn picture, with a callback for when Jibo finishes
+        coCreate.OnTap(() =>
+        {
+            // Switch back to player's turn
+            sr.sprite = yourTurnSprite;
+            isYourTurn = true;
+        });
 
-      
-        isYourTurn = true;
-        sr.sprite = yourTurnSprite;
+        yield break;
     }
-
 }
