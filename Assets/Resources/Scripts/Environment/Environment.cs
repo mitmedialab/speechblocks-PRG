@@ -383,7 +383,6 @@ public class Environment : MonoBehaviour
                 appHasFocus = true;
                 Logging.OnRegainedFocus();
                 if (recordingDecisionMade && null == replayer) { StartRecording(); }
-                StartCoroutine((roboPartner as VirtualJiboPartner).GetRobotCollaborativeBehavior("Apple"));
             }
             else
             {

@@ -217,7 +217,10 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         speechRingPrefab = Resources.Load<GameObject>("Prefabs/speech-ring");
         eyeController.SetCoroutine(BlinkingCoroutine());
         speechRecoButton = GameObject.FindWithTag("SpeechRecoButton")?.GetComponent<SpeechRecoButton>();
-        constructionAgent = new OpenAIAgent();
+        if (null == constructionAgent)
+        {
+            constructionAgent = gameObject.AddComponent<OpenAIAgent>();
+        }
 
         GameObject wordDrawerGO = GameObject.FindWithTag("WordDrawer");
         if (wordDrawerGO != null)
@@ -369,9 +372,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
             FocusOnAPointOfInterest();
         }
     }
-
-
-
 
     private void Update()
     {
@@ -1612,11 +1612,11 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         jiboTform.position = targetPos;
         jiboTform.rotation = startRot;
     }
-    
-        /**
+
+    /**
      * Helper Function Calls to LLM for Robot's Collaborative Behaviors
      */
-    public IEnumerator GetRobotCollaborativeBehavior(string new_object)
+    public IEnumerator GetRobotCollaborativeBehavior(string new_object, Action<PlacementUtil.RelativePlacement, float, string> callback)
     {
         if (constructionAgent == null)
         {
@@ -1626,20 +1626,11 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
 
         (byte[] sceneSnapshot, List<string> onsetItems) = environment.GetSceneSnapshotAndOnsetItems();
         if (sceneSnapshot == null || onsetItems == null) { yield break; }
+        onsetItems.Remove(new_object);
         Debug.Log("Onset Items: " + string.Join(", ", onsetItems));
-        
-        yield return constructionAgent.GetRobotIntegrativeElaboration(sceneSnapshot, onsetItems, new_object);
 
-        // TODO: The robot should use a backup strategy if the narrative result is not available.
-        if (constructionAgent.GetNarrativeResult() == null) { yield break; }
+        yield return StartCoroutine(constructionAgent.GetRobotIntegrativeElaboration(sceneSnapshot, onsetItems, new_object, callback));
 
-        // TODO: The robot should now speak the narrative.
-        yield return constructionAgent.GetRobotSymbolicPlayBehavior(sceneSnapshot, onsetItems, new_object);
-
-        // TODO: The robot should use a backup strategy if the symbolic play result is not available.
-        if (constructionAgent.GetSymbolicPlayResult() == null) { yield break; }
-
-        // TODO: The robot should now spawn the object to the target location.
     }
 }
 

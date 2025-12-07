@@ -93,7 +93,7 @@ public class Composition : MonoBehaviour
             PictureBlock pictureBlock = child.GetComponent<PictureBlock>();
             if (null == pictureBlock) continue;
             string word_sense = pictureBlock.GetTermWordSense();
-            if(!onsetItems.Contains(word_sense)) onsetItems.Add(word_sense);
+            if (!onsetItems.Contains(word_sense)) onsetItems.Add(word_sense);
         }
         return onsetItems;
     }
@@ -434,5 +434,16 @@ public class Composition : MonoBehaviour
     public GameObject GetMostRecentPictureBlock()
     {
         return _lastPlacedBlock;
+    }
+    
+    public GameObject FindMatchingPictureBlock(string wordSense)
+    {
+        foreach (Transform child in transform.GetComponentsInChildren<Transform>())
+        {
+            PictureBlock pictureBlock = child.GetComponent<PictureBlock>();
+            if (pictureBlock != null && pictureBlock.GetTermWordSense() == wordSense)
+                return child.gameObject;
+        }
+        return null;
     }
 }
