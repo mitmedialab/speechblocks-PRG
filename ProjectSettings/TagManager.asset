@@ -39,6 +39,7 @@ TagManager:
   - BuildButton
   - ScaffoldButton
   - TopicChoiceAssembly
+  - CoCreationBox
   layers:
   - Default
   - TransparentFX
