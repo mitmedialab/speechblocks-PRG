@@ -10,5 +10,6 @@ public class FixedDecisionModel : IScaffolderDecisionModel
     public int DecideScaffoldingLevel(PGPair pgPair, int positionType)
     {
         return 1;
+        // return 3;
     }
 }

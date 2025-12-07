@@ -82,12 +82,54 @@ public class Composition : MonoBehaviour
         RestoreUIElements(hidden);
     }
 
+    public List<string> GetOnsetItems()
+    {
+        if (!IsOnScene()) return null;
+        Transform[] children = transform.GetComponentsInChildren<Transform>();
+        List<string> onsetItems = new List<string>();
+        foreach (Transform child in children)
+        {
+            if (child == transform || !child.gameObject.activeSelf) continue;
+            PictureBlock pictureBlock = child.GetComponent<PictureBlock>();
+            if (null == pictureBlock) continue;
+            string word_sense = pictureBlock.GetTermWordSense();
+            if (!onsetItems.Contains(word_sense)) onsetItems.Add(word_sense);
+        }
+        return onsetItems;
+    }
+
+    public byte[] GetSceneSnapshotAsBytes()
+    {
+        if (!IsOnScene()) return null;
+        Camera camera = GameObject.FindWithTag("MainCamera").GetComponent<Camera>();
+        List<GameObject> hidden = HideUIElements();
+        int height = 400;
+        int width = (int)(height * camera.aspect);
+        RenderTexture renderTexture = new RenderTexture(width, height, 24);
+        camera.targetTexture = renderTexture;
+        Texture2D screenShot = new Texture2D(width, height, TextureFormat.RGB24, false);
+        try { camera.Render(); } catch { }
+        RenderTexture.active = renderTexture;
+        screenShot.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+        camera.targetTexture = null;
+        RenderTexture.active = null; // JC: added to avoid errors
+        Destroy(renderTexture);
+        byte[] bytes = screenShot.EncodeToPNG();
+        RestoreUIElements(hidden);
+        return bytes;
+    }
+
     public void Setup(string sceneID, JSONNode description)
     {
         Reset();
         this.sceneID = sceneID;
         DeserializePictureBlockHierarchy(transform, (JSONArray)description["content"]);
         AdjustInscriptionOrientation();
+    }
+
+    public bool IsOnScene()
+    {
+        return this.sceneID != null;
     }
 
     public static bool IsOnCanvas(Transform tform)
@@ -392,5 +434,16 @@ public class Composition : MonoBehaviour
     public GameObject GetMostRecentPictureBlock()
     {
         return _lastPlacedBlock;
+    }
+    
+    public GameObject FindMatchingPictureBlock(string wordSense)
+    {
+        foreach (Transform child in transform.GetComponentsInChildren<Transform>())
+        {
+            PictureBlock pictureBlock = child.GetComponent<PictureBlock>();
+            if (pictureBlock != null && pictureBlock.GetTermWordSense() == wordSense)
+                return child.gameObject;
+        }
+        return null;
     }
 }

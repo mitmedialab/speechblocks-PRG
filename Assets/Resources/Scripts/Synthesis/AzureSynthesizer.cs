@@ -160,9 +160,11 @@ public class AzureSynthesizer : ISynthesizerModule {
         SynQuery azureQuery = BuildSynQueryForAzure(synQuery);
         if (null == azureQuery) return null;
         return "<speak xmlns=\"http://www.w3.org/2001/10/synthesis\" xmlns:mstts=\"http://www.w3.org/2001/mstts\" xmlns:emo=\"http://www.w3.org/2009/10/emotionml\" version=\"1.0\" xml:lang=\"en-US\">"
-            + "<voice name=\"en-US-JennyNeural\">"
+            + "<voice name=\"en-US-AnaNeural\">"
+            + "<prosody pitch=\"-12%\">"
             + SynQuery.BuildSSML(azureQuery)
-            + "</voice></speak>";
+            + "</prosody></voice></speak>";
+            // + "</voice></speak>";
     }
 
     private SynQuery BuildSynQueryForAzure(SynQuery synQuery)

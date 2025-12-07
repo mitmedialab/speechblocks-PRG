@@ -104,8 +104,8 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     private const float EAR_PULSE_FACTOR = 0.1f;
 
     private Quaternion[] poseQuatParams = { Quaternion.identity, Quaternion.identity };
-    private Quaternion[] poseQuatDevs   = { Quaternion.identity, Quaternion.identity };
-    private float[]      poseScalarParams = { 0, 1 };
+    private Quaternion[] poseQuatDevs = { Quaternion.identity, Quaternion.identity };
+    private float[] poseScalarParams = { 0, 1 };
 
     private const int POSE_PARAM_FACEDIR = 0;
     private const int POSE_PARAM_GAZEDIR = 1;
@@ -125,6 +125,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
     private float celebrationPause = 0.18f;
     private bool isJumpingToWordBoxEnd = false;
     private Scaffolder scaffolder;
+    private OpenAIAgent constructionAgent;
 
 
     private static Dictionary<string, Vector3> positionByLocation = new Dictionary<string, Vector3>()
@@ -216,7 +217,10 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         speechRingPrefab = Resources.Load<GameObject>("Prefabs/speech-ring");
         eyeController.SetCoroutine(BlinkingCoroutine());
         speechRecoButton = GameObject.FindWithTag("SpeechRecoButton")?.GetComponent<SpeechRecoButton>();
-
+        if (null == constructionAgent)
+        {
+            constructionAgent = gameObject.AddComponent<OpenAIAgent>();
+        }
 
         GameObject wordDrawerGO = GameObject.FindWithTag("WordDrawer");
         if (wordDrawerGO != null)
@@ -273,7 +277,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
                 animator.SetCoroutine(AnimateWiggle(wiggleCycles: 3, wiggleDuration: 2.5f));
                 break;
             case RoboExpression.HAPPY:
-        
+
             case RoboExpression.EXCITED:
                 switch (RandomUtil.Range("jibo-expr1", 6, 7))
                 {
@@ -290,10 +294,10 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
                         animator.SetCoroutine(AnimateExcitedJump());
                         break;
                     case 3:
-                        animator.SetCoroutine(AnimateHappyWiggleJump());  
+                        animator.SetCoroutine(AnimateHappyWiggleJump());
                         break;
                     case 4:
-                        animator.SetCoroutine(AnimateHappySpinJump());  
+                        animator.SetCoroutine(AnimateHappySpinJump());
                         break;
                     case 5:
                         animator.SetCoroutine(JumpToWordBoxEnd());
@@ -301,7 +305,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
                     case 6:
                         animator.SetCoroutine(JumpToLastPlacedBlock()); // Current Excited Animation
                         break;
-                }       
+                }
                 break;
 
             case RoboExpression.PUZZLED:
@@ -368,9 +372,6 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
             FocusOnAPointOfInterest();
         }
     }
-
-
-
 
     private void Update()
     {
@@ -567,7 +568,8 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
 
     private void FocusOnAPointOfInterest()
     {
-        if (animationType <= ANIMATION_TYPE_LOOKAT) {
+        if (animationType <= ANIMATION_TYPE_LOOKAT)
+        {
             //Debug.Log("ANIMATOR: WATCH POINT OF INTEREST");
             animator.SetCoroutine(Watch(RandomPointOnScreen()));
             SampleChangeOfInterestTime();
@@ -785,7 +787,8 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         deviationAngles[POSE_PARAM_GAZEDIR] = GAZE_DEV_ANGLE_FACTOR * deviationAngles[POSE_PARAM_FACEDIR];
         float deviationDirAngle = RandomUtil.Range("jibo-motion-2", 0, Mathf.PI);
         IEnumerator[] microMovementEnumerators = new IEnumerator[3];
-        for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < 2; ++i)
+        {
             Vector3 deviationDir = RandomUtil.DeviateDirection(Vector3.forward, deviationAngles[i], deviationDirAngle);
             microMovementEnumerators[i] = TransitionQuatParam(poseQuatDevs, i, deviationDir, LOOKAT_DURATION, Easing.EaseInOut);
         }
@@ -1409,7 +1412,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         Vector3 lastBlockWorldPos = bottomWordBox.transform.position + lastBlock.transform.localPosition;
 
         Vector3 targetPos = lastBlockWorldPos + new Vector3(0, 0.75f * cellHeight, 0);
-      
+
 
         // Pre-jump squish
         yield return TransitionScalarParam(POSE_PARAM_SQUISH, MAX_SQUISH, LOOKAT_GAZE_DURATION, Easing.EaseInOut);
@@ -1433,7 +1436,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         }
 
         RestoreAfterExpression();
-        
+
     }
 
     private IEnumerator JumpToWordBoxEnd()
@@ -1541,7 +1544,7 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         yield return AnimateWiggle(wiggleCycles: 2, wiggleDuration: 1.2f);
 
         RestoreAfterExpression();
-       
+
 
 
     }
@@ -1608,6 +1611,26 @@ public class VirtualJiboPartner : MonoBehaviour, IRoboPartner
         // Place Jibo exactly on the target
         jiboTform.position = targetPos;
         jiboTform.rotation = startRot;
+    }
+
+    /**
+     * Helper Function Calls to LLM for Robot's Collaborative Behaviors
+     */
+    public IEnumerator GetRobotCollaborativeBehavior(string new_object, Action<PlacementUtil.RelativePlacement, float, string> callback)
+    {
+        if (constructionAgent == null)
+        {
+            Debug.LogWarning("GetRobotCollaborativeBehavior: constructionAgent is null.");
+            yield break;
+        }
+
+        (byte[] sceneSnapshot, List<string> onsetItems) = environment.GetSceneSnapshotAndOnsetItems();
+        if (sceneSnapshot == null || onsetItems == null) { yield break; }
+        onsetItems.Remove(new_object);
+        Debug.Log("Onset Items: " + string.Join(", ", onsetItems));
+
+        yield return StartCoroutine(constructionAgent.GetRobotIntegrativeElaboration(sceneSnapshot, onsetItems, new_object, callback));
+
     }
 }
 

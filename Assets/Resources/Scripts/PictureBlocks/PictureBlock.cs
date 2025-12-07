@@ -8,7 +8,7 @@ using SimpleJSON;
 
 // Loading sprites using recipe from https://forum.unity.com/threads/generating-sprites-dynamically-from-png-or-jpeg-files-in-c.343735/
 
-public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackable
+public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackable, ITouchListener
 {
     private string id = null;
     private string theme = null;
@@ -44,7 +44,7 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
     public void Setup(Transform parent, JSONNode description)
     {
         id = description["id"];
-        if (null == id) { id = System.Guid.NewGuid().ToString();  }
+        if (null == id) { id = System.Guid.NewGuid().ToString(); }
         transform.SetParent(parent, false);
         SerializationUtil.DeserializeTransform(transform, description);
         GetComponent<Picture>().Setup(description["pic"]);
@@ -84,12 +84,14 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
         return timestamp;
     }
 
-    public float GetWidth() {
+    public float GetWidth()
+    {
         Vector2 colliderSize = GetComponent<BoxCollider2D>().size;
         return colliderSize.x * transform.localScale.x;
     }
 
-    public float GetHeight() {
+    public float GetHeight()
+    {
         Vector2 colliderSize = GetComponent<BoxCollider2D>().size;
         return colliderSize.y * transform.localScale.y;
     }
@@ -109,7 +111,8 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
         return GetComponent<Picture>().GetImageWordSense();
     }
 
-    public object[] GetLogDetails() {
+    public object[] GetLogDetails()
+    {
         return new object[] { "img", GetImageWordSense(), "ppu", 100 };
     }
 
@@ -126,11 +129,12 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
     {
         Vector3 myScale = transform.lossyScale;
         Vector3 theirScale = newRoot.transform.lossyScale;
-        return  theirScale.y > 0.9f * myScale.y;
+        return theirScale.y > 0.9f * myScale.y;
     }
 
     public void OnTap(TouchInfo touchInfo)
     {
+        Debug.Log("OnTap: " + gameObject.name);
         GameObject stageObject = GameObject.FindWithTag("StageObject");
         if (!stageObject.GetComponent<Environment>().GetUser().InChildDrivenCondition()) return;
         if (!stageObject.GetComponent<Tutorial>().IsLessonCompleted("gallery")) return;
@@ -143,4 +147,24 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
             assocPanel.Invoke(term, cause: Logging.GetObjectLogID(gameObject));
         }
     }
+
+    public void TouchMoved(TouchInfo touchInfo)
+    {
+        // Debug.Log("OnTouchMoved: " + GetTermWordSense());
+        return;
+    }
+
+    public void OnTouchUp(TouchInfo touchInfo)
+    {
+        // Debug.Log("OnTouchUp: " + GetTermWordSense());
+        return;
+    }
+    public void OnTouch(TouchInfo touchInfo)
+    {   
+        string seedWord = GetTermWordSense();
+        Debug.Log("User Touched PictureBlock: " + seedWord);
+        GameObject.FindWithTag("CoCreationBox")?.GetComponent<CoCreateButton>().SetSeedWord(seedWord);
+        return;
+    }
+
 }

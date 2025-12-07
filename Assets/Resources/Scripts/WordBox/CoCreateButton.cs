@@ -66,63 +66,40 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
         Debug.Log("[CoCreateButton] Spawned picture: " + chosenWord);
 
-        float[] possibleScales = { 0.5f, 0.75f, 1f, 1.25f };
-        float chosenScale = possibleScales[Random.Range(0, possibleScales.Length)];
-
         // Find Jibo in scene
         VirtualJiboPartner jibo = GameObject.FindObjectOfType<VirtualJiboPartner>();
         if (jibo != null)
         {
-            // Compute target positions
-            Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f); // jump on top
             //Vector3 canvasTarget = FindFreeCanvasSpot(picture);
-            RelativePlacement placement = GetRandomPlacement();
-            Debug.Log($"[CoCreateButton] Directional placement chosen: {placement}");
-
-            // find the previously placed picture (fallback to random free-spot behavior if none)
-            GameObject prev = GameObject.FindObjectOfType<Composition>()?.GetMostRecentPictureBlock();
-
-            Vector3 canvasTarget = prev != null
-                ? ComputeDirectionalCanvasSpot(prev, picture, placement)
-                : FindFreeCanvasSpot(picture);
-
-
-            if (float.IsNaN(canvasTarget.x))
+            // PlacementUtil.RelativePlacement placement = PlacementUtil.GetRandomPlacement();
+            // Debug.Log($"[CoCreateButton] Directional placement chosen: {placement}");
+            
+            StartCoroutine(jibo.GetRobotCollaborativeBehavior(chosenWord, (placement, chosenScale, related_object) =>
             {
-                Debug.LogWarning("[CoCreateButton] No free canvas spot — canceling spawn.");
+                // Compute target positions
+                Vector3 jiboTarget = picture.transform.position + new Vector3(0f, 0.2f, 0f); // jump on top
+                // find the previously placed picture (fallback to random free-spot behavior if none)
+                GameObject prev = GameObject.FindObjectOfType<Composition>()?.GetMostRecentPictureBlock();
 
-                Destroy(picture);
-                return;
-            }
-
+                Vector3 canvasTarget = prev != null
+                    ? ComputeDirectionalCanvasSpot(prev, picture, placement)
+                    : FindFreeCanvasSpot(picture);
+                if (float.IsNaN(canvasTarget.x))
+                {
+                    Debug.LogWarning("[CoCreateButton] No free canvas spot — canceling spawn.");
+                    Destroy(picture);
+                    return;
+                }
             canvasTarget = ClampToCanvasBounds(canvasTarget);
 
             activeRoutine = StartCoroutine(JumpOntoBoxAndMovePicture(
                 jibo, picture, canvasTarget,
                 wiggleCycles: 2, slideDuration: 1.0f, scaleBy: chosenScale));
-
+            }));
         }
     }
 
-    public enum RelativePlacement
-    {
-        Left,
-        Right,
-        Up,
-        Down,
-        //TopRight,
-        //TopLeft,
-        //BottomRight,
-        //BottomLeft
-    }
-
-    private RelativePlacement GetRandomPlacement()
-    {
-        var values = System.Enum.GetValues(typeof(RelativePlacement));
-        return (RelativePlacement)values.GetValue(Random.Range(0, values.Length));
-    }
-
-    private Vector3 ComputeDirectionalCanvasSpot(GameObject prev, GameObject picture, RelativePlacement placement)
+    private Vector3 ComputeDirectionalCanvasSpot(GameObject prev, GameObject picture, PlacementUtil.RelativePlacement placement)
     {
         Composition comp = GameObject.FindObjectOfType<Composition>();
         if (comp == null)
@@ -147,19 +124,19 @@ public class CoCreateButton : MonoBehaviour, ITappable
 
         switch (placement)
         {
-            case RelativePlacement.Left:
+            case PlacementUtil.RelativePlacement.Left:
                 candidate.x -= stepX;
                 break;
 
-            case RelativePlacement.Right:
+            case PlacementUtil.RelativePlacement.Right:
                 candidate.x += stepX;
                 break;
 
-            case RelativePlacement.Up:
+            case PlacementUtil.RelativePlacement.Up:
                 candidate.y += stepY;
                 break;
 
-            case RelativePlacement.Down:
+            case PlacementUtil.RelativePlacement.Down:
                 candidate.y -= stepY;
                 break;
 
@@ -380,6 +357,7 @@ public class CoCreateButton : MonoBehaviour, ITappable
     public void SetSeedWord(string newWord)
     {
         seedWord = newWord;
+        Debug.Log("[CoCreateButton] Seed word set to: " + seedWord);
     }
 
     public IEnumerator TriggerCoCreateAndWait()

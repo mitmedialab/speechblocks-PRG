@@ -3760,8 +3760,8 @@ Transform:
   m_GameObject: {fileID: 552069013}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.1}
-  m_LocalScale: {x: -0.37, y: 0.37, z: 0.73167306}
+  m_LocalPosition: {x: 0.04, y: -0.01, z: -0.1}
+  m_LocalScale: {x: 0.6, y: 0.6, z: 0.73167306}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4065922728465180}
@@ -3807,15 +3807,15 @@ SpriteRenderer:
   m_SortingLayerID: 1349863479
   m_SortingLayer: 2
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 905958a8edbe04d56a6008a1b9fae8d2, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 072fc40381fcd44528f1317f3d8a94d8, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 2.56, y: 2.56}
+  m_Size: {x: 1.84, y: 1.84}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 0
+  m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &552429728
@@ -6831,7 +6831,7 @@ GameObject:
   - component: {fileID: 1096923564}
   m_Layer: 0
   m_Name: CoCreateBox
-  m_TagString: Untagged
+  m_TagString: CoCreationBox
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -12988,7 +12988,7 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: 7204e7271a8cd416b80e120b5fcf269f, type: 3}
-  m_Color: {r: 0.96470594, g: 0.9333334, b: 0.89019614, a: 1}
+  m_Color: {r: 0.96470594, g: 0.9333334, b: 0.89019614, a: 0.0627451}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
