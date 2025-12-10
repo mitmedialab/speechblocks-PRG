@@ -43,3 +43,17 @@ This version of the app doesn't exactly correspond to what was described in the 
 
 5. Scaffolding was also modified to be more flexible and account for invented spelling. When a misspelling occurs, the system pronounces the misspelled words, encouraging exploration and making mistakes more fun.
 
+## Bugs And Features To Improve
+
+1. More Consistent LLM Calling (It doesn't always work when a new canvas is created)
+
+2. Improve Jibo image location placement and relative sizing
+
+3. Remove spelling sequence from suggested words (I think this is in Association Button)
+
+4. Hide turn switching button and cocreation box during tutorial
+
+5. Remove clickability of cocreation button
+
+6. Build Out better turn taking scaffolding
+
