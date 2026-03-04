@@ -128,7 +128,18 @@ public class Picture : MonoBehaviour
     {
         if (imageWordSense.EndsWith(".noimg"))
         {
-            imageHolder = CreateDefaultImage(termWordSense, width, height);
+            // Check if Gemini has already generated an image for this word
+            string subject = GetSubjectForGeneration(termWordSense);
+            GeminiImageGenerator generator = GeminiImageGenerator.Instance;
+            if (generator != null && generator.HasCached(subject))
+            {
+                imageHolder = CreateImageFromTexture(generator.GetCached(subject), width, height);
+            }
+            else
+            {
+                imageHolder = CreateDefaultImage(termWordSense, width, height);
+                TryGenerateImage(termWordSense, width, height);
+            }
         }
         else if (Vocab.IsInNameSense(imageWordSense))
         {
@@ -139,7 +150,17 @@ public class Picture : MonoBehaviour
             imageHolder = CreateImage($"Images/{imageWordSense}", width, height);
             if (null == imageHolder)
             {
-                imageHolder = CreateDefaultImage(termWordSense, width, height);
+                string subject = GetSubjectForGeneration(termWordSense);
+                GeminiImageGenerator generator = GeminiImageGenerator.Instance;
+                if (generator != null && generator.HasCached(subject))
+                {
+                    imageHolder = CreateImageFromTexture(generator.GetCached(subject), width, height);
+                }
+                else
+                {
+                    imageHolder = CreateDefaultImage(termWordSense, width, height);
+                    TryGenerateImage(termWordSense, width, height);
+                }
             }
         }
         return imageHolder;
@@ -241,5 +262,72 @@ public class Picture : MonoBehaviour
         {
             activeTouchArea.Setup(imageTransform.gameObject);
         }
+    }
+
+    private string GetSubjectForGeneration(string wordSense)
+    {
+        try
+        {
+            string word = Vocab.GetWord(wordSense);
+            if (!string.IsNullOrEmpty(word)) return word;
+        }
+        catch { }
+        return wordSense;
+    }
+
+    private void TryGenerateImage(string termWordSense, float width, float height)
+    {
+        GeminiImageGenerator generator = GeminiImageGenerator.Instance;
+        if (generator == null || !generator.IsAvailable()) return;
+        string subject = GetSubjectForGeneration(termWordSense);
+        StartCoroutine(GenerateAndReplaceImage(subject, width, height));
+    }
+
+    private IEnumerator GenerateAndReplaceImage(string subject, float width, float height)
+    {
+        Texture2D generatedTexture = null;
+        yield return GeminiImageGenerator.Instance.GenerateImage(subject, tex => generatedTexture = tex);
+
+        if (generatedTexture != null && imageHolder != null)
+        {
+            // Remember current sorting layer/order before replacing
+            string sortingLayer = ZSorting.GetSortingLayer(gameObject);
+            int sortingOrder = ZSorting.GetSortingOrder(gameObject);
+
+            // Remove the old default image and inscription
+            Transform oldImage = transform.Find("Image");
+            if (oldImage != null) Destroy(oldImage.gameObject);
+            Transform inscription = transform.Find("Inscription");
+            if (inscription != null) Destroy(inscription.gameObject);
+
+            // Create new image from the generated texture
+            imageHolder = CreateImageFromTexture(generatedTexture, width, height);
+
+            // Re-apply sorting layer/order so the new sprite is visible
+            ZSorting.SetSortingLayer(gameObject, sortingLayer);
+            ZSorting.SetSortingOrder(gameObject, sortingOrder);
+
+            Debug.Log("[Picture] Replaced default image with Gemini-generated image for: " + subject);
+        }
+    }
+
+    private GameObject CreateImageFromTexture(Texture2D texture, float width, float height)
+    {
+        GameObject imageObject = new GameObject();
+        imageObject.name = "Image";
+        imageObject.transform.SetParent(transform, false);
+        SpriteRenderer spriteRenderer = imageObject.AddComponent<SpriteRenderer>();
+        float ppu = Mathf.Max(texture.width / width, texture.height / height);
+        Sprite sprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f),
+            ppu
+        );
+        spriteRenderer.sprite = sprite;
+        float targetScale = Mathf.Min(width / sprite.bounds.size.x, height / sprite.bounds.size.y);
+        imageObject.transform.localScale = new Vector3(targetScale, targetScale, targetScale);
+        imageObject.transform.localPosition = new Vector3(0, 0, -0.1f);
+        return imageObject;
     }
 }

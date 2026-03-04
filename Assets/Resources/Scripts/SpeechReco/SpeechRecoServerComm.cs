@@ -174,7 +174,16 @@ public class SpeechRecoServerComm : MonoBehaviour
         }
         else if (0 == recoResults.Count)
         {
-            result.SetErrorCode(UNKNOWN_WORDS_PICKED);
+            string unknownWord = GetBestUnknownWord(transcripts);
+            if (unknownWord != null)
+            {
+                Debug.Log("[SpeechRecoServerComm] Accepting unknown word for image generation: " + unknownWord);
+                result.Set(new List<string> { unknownWord });
+            }
+            else
+            {
+                result.SetErrorCode(UNKNOWN_WORDS_PICKED);
+            }
         }
         else
         {
@@ -264,6 +273,22 @@ public class SpeechRecoServerComm : MonoBehaviour
         {
             outputOptions.Add(new Candidate(word, score));
         }
+    }
+
+    private string GetBestUnknownWord(List<Transcript> transcripts)
+    {
+        // Only accept single-word transcripts (no fragments like "wom" from "wom bat")
+        // Transcripts are already sorted by confidence, so the first match is the best
+        foreach (Transcript transcript in transcripts)
+        {
+            string word = transcript.transcript.Trim().ToLower();
+            if (word.Contains(" ")) continue;
+            if (!word.All(char.IsLetter)) continue;
+            if (word.Length < 3) continue;
+            try { if (vocab.IsSwearWord(word)) continue; } catch { }
+            return word;
+        }
+        return null;
     }
 
     private struct Transcript
