@@ -14,6 +14,11 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
     private string theme = null;
     private DateTime timestamp = DateTime.Now;
 
+    private AudioSource audioSource = null;
+    private AudioClip objectSound = null;
+    private const float OBJECT_SOUND_COOLDOWN = 1.0f;
+    private float lastObjectSoundTime = -1000f;
+
     public JSONNode Serialize()
     {
         JSONObject description = new JSONObject();
@@ -58,6 +63,7 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
         {
             timestamp = DateTime.Now;
         }
+        LoadObjectSound(GetComponent<Picture>().GetTermWordSense());
     }
 
     public void Setup(Vector3 position, string wordSense, string sortingLayer)
@@ -67,6 +73,8 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
         Vocab vocab = GameObject.FindWithTag("StageObject").GetComponent<Vocab>();
         GetComponent<Picture>().Setup(wordSense, 2, 2, sortingLayer);
         timestamp = DateTime.Now;
+        LoadObjectSound(wordSense);
+        PlayObjectSound();
     }
 
     public void SetTheme(string theme)
@@ -135,6 +143,7 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
     public void OnTap(TouchInfo touchInfo)
     {
         Debug.Log("OnTap: " + gameObject.name);
+        PlayObjectSound();
         GameObject stageObject = GameObject.FindWithTag("StageObject");
         if (!stageObject.GetComponent<Environment>().GetUser().InChildDrivenCondition()) return;
         if (!stageObject.GetComponent<Tutorial>().IsLessonCompleted("gallery")) return;
@@ -160,11 +169,35 @@ public class PictureBlock : MonoBehaviour, ITappable, IDetailedLogging, IStackab
         return;
     }
     public void OnTouch(TouchInfo touchInfo)
-    {   
+    {
         string seedWord = GetTermWordSense();
         Debug.Log("User Touched PictureBlock: " + seedWord);
+        PlayObjectSound();
         GameObject.FindWithTag("CoCreationBox")?.GetComponent<CoCreateButton>().SetSeedWord(seedWord);
         return;
+    }
+
+    private void LoadObjectSound(string wordSense)
+    {
+        objectSound = Resources.Load<AudioClip>("Sounds/Objects/" + wordSense);
+        if (objectSound != null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+            audioSource.playOnAwake = false;
+            Debug.Log("[PictureBlock] Loaded object sound for: " + wordSense);
+        }
+    }
+
+    private void PlayObjectSound()
+    {
+        if (objectSound == null || audioSource == null) return;
+        if (Time.time - lastObjectSoundTime < OBJECT_SOUND_COOLDOWN) return;
+        lastObjectSoundTime = Time.time;
+        audioSource.PlayOneShot(objectSound);
     }
 
 }
