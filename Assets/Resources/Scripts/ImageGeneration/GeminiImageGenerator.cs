@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -73,12 +74,72 @@ public class GeminiImageGenerator : MonoBehaviour
 
     public bool HasCached(string subject)
     {
-        return cache.ContainsKey(subject);
+        if (cache.ContainsKey(subject)) return true;
+        // Check disk for a previously saved generated image
+        if (File.Exists(GetSavePath(subject)))
+        {
+            LoadFromDisk(subject);
+            return cache.ContainsKey(subject);
+        }
+        return false;
     }
 
     public Texture2D GetCached(string subject)
     {
+        if (cache.ContainsKey(subject)) return cache[subject];
+        // Try loading from disk
+        if (File.Exists(GetSavePath(subject)))
+        {
+            LoadFromDisk(subject);
+        }
         return cache.ContainsKey(subject) ? cache[subject] : null;
+    }
+
+    private string GetSaveDirectory()
+    {
+        return Path.Combine(Application.persistentDataPath, "GeneratedImages");
+    }
+
+    private string GetSavePath(string subject)
+    {
+        // Sanitize subject to be a safe filename
+        string safeName = subject.Replace(" ", "_").Replace("/", "_").Replace("\\", "_");
+        return Path.Combine(GetSaveDirectory(), safeName + ".png");
+    }
+
+    private void SaveToDisk(string subject, Texture2D texture)
+    {
+        try
+        {
+            string dir = GetSaveDirectory();
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            byte[] pngBytes = texture.EncodeToPNG();
+            File.WriteAllBytes(GetSavePath(subject), pngBytes);
+            Debug.Log("[GeminiImageGenerator] Saved generated image to disk for: " + subject);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[GeminiImageGenerator] Failed to save image to disk: " + e.Message);
+        }
+    }
+
+    private void LoadFromDisk(string subject)
+    {
+        try
+        {
+            string path = GetSavePath(subject);
+            byte[] fileBytes = File.ReadAllBytes(path);
+            Texture2D texture = new Texture2D(2, 2);
+            if (texture.LoadImage(fileBytes))
+            {
+                cache[subject] = texture;
+                Debug.Log("[GeminiImageGenerator] Loaded generated image from disk for: " + subject);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[GeminiImageGenerator] Failed to load image from disk: " + e.Message);
+        }
     }
 
     public IEnumerator GenerateImage(string subject, Action<Texture2D> callback)
@@ -135,7 +196,13 @@ public class GeminiImageGenerator : MonoBehaviour
             },
             {"generationConfig", new Dictionary<string, object>
                 {
-                    {"responseModalities", new List<string>{"TEXT", "IMAGE"}}
+                    {"responseModalities", new List<string>{"TEXT", "IMAGE"}},
+                    {"imageConfig", new Dictionary<string, object>
+                        {
+                            {"aspectRatio", "1:1"},
+                            {"imageSize", "512px"}
+                        }
+                    }
                 }
             }
         };
@@ -178,6 +245,7 @@ public class GeminiImageGenerator : MonoBehaviour
                             {
                                 texture = RemoveWhiteBackground(texture);
                                 cache[subject] = texture;
+                                SaveToDisk(subject, texture);
                                 Debug.Log("[GeminiImageGenerator] Successfully generated image for: " + subject);
                                 callback?.Invoke(texture);
                                 yield break;
